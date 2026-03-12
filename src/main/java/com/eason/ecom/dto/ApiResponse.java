@@ -1,5 +1,8 @@
 package com.eason.ecom.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(name = "ApiResponse", description = "Standard API response wrapper")
 public record ApiResponse<T>(boolean success, String message, T data) {
 
     public static <T> ApiResponse<T> success(T data) {

@@ -97,7 +97,17 @@ public class CartService {
         Map<Object, Object> entries = hashOperations.entries(cartKey(userId));
         Map<Long, Integer> result = new LinkedHashMap<>();
         for (Map.Entry<Object, Object> entry : entries.entrySet()) {
-            result.put(Long.parseLong(entry.getKey().toString()), Integer.parseInt(entry.getValue().toString()));
+            try {
+                long productId = Long.parseLong(entry.getKey().toString());
+                int quantity = Integer.parseInt(entry.getValue().toString());
+                if (quantity <= 0) {
+                    hashOperations.delete(cartKey(userId), entry.getKey());
+                    continue;
+                }
+                result.put(productId, quantity);
+            } catch (NumberFormatException exception) {
+                hashOperations.delete(cartKey(userId), entry.getKey());
+            }
         }
         return result;
     }

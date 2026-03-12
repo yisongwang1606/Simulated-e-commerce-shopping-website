@@ -1,6 +1,7 @@
 package com.eason.ecom.service;
 
 import java.time.Duration;
+import java.util.Locale;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,16 +45,19 @@ public class AuthService {
 
     @Transactional
     public UserProfileResponse register(RegisterRequest request) {
-        if (userAccountRepository.existsByUsername(request.username())) {
+        String normalizedUsername = normalizeUsername(request.username());
+        String normalizedEmail = normalizeEmail(request.email());
+
+        if (userAccountRepository.existsByUsername(normalizedUsername)) {
             throw new BadRequestException("Username already exists");
         }
-        if (userAccountRepository.existsByEmail(request.email())) {
+        if (userAccountRepository.existsByEmail(normalizedEmail)) {
             throw new BadRequestException("Email already exists");
         }
 
         UserAccount userAccount = new UserAccount();
-        userAccount.setUsername(request.username().trim());
-        userAccount.setEmail(request.email().trim().toLowerCase());
+        userAccount.setUsername(normalizedUsername);
+        userAccount.setEmail(normalizedEmail);
         userAccount.setPassword(passwordEncoder.encode(request.password()));
         userAccount.setRole(UserRole.CUSTOMER);
 
@@ -62,8 +66,10 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        UserAccount userAccount = userAccountRepository.findByUsername(request.username())
-                .or(() -> userAccountRepository.findByEmail(request.username().toLowerCase()))
+        String loginValue = request.username().trim();
+
+        UserAccount userAccount = userAccountRepository.findByUsername(loginValue)
+                .or(() -> userAccountRepository.findByEmail(loginValue.toLowerCase(Locale.ROOT)))
                 .orElseThrow(() -> new BadRequestException("Invalid credentials"));
 
         if (!passwordEncoder.matches(request.password(), userAccount.getPassword())) {
@@ -103,5 +109,13 @@ public class AuthService {
             throw new BadRequestException("Missing Bearer token");
         }
         return authorizationHeader.substring(7).trim();
+    }
+
+    private String normalizeUsername(String username) {
+        return username.trim();
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }
