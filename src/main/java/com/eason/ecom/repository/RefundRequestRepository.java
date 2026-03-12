@@ -30,6 +30,8 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequest, Lo
 
     boolean existsByOrderIdAndRefundStatusIn(Long orderId, List<RefundStatus> statuses);
 
+    long countByRefundStatusIn(List<RefundStatus> statuses);
+
     @Query("""
             select refundRequest.refundStatus,
                    count(refundRequest),

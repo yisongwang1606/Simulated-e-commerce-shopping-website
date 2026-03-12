@@ -8,7 +8,7 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Backend enterprise baseline is implemented and verified locally.
 - Swagger / OpenAPI is enabled.
 - Flyway database migrations are enabled and currently validated through `V6`.
-- The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, support ticket intake, order tagging, and admin order/refund/service-desk review surfaces.
+- The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, support ticket intake, order tagging, admin order/refund/service-desk review surfaces, and a redesigned admin operations overview.
 
 ## Core Capabilities
 
@@ -31,7 +31,9 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Customer support ticket creation and admin service-desk handling
 - Operational order tags for triage and exception handling
 - Refund summary metrics for the admin dashboard
-- Frontend admin dashboard with order search filters, order tagging, refund review, and support ticket actions
+- Admin operations summary endpoint for order pressure, support workload, catalog readiness, and low-stock watchlists
+- Frontend admin dashboard with queue metrics, low-stock watchlists, order search filters, order tagging, refund review, and support ticket actions
+- Refined React shell with a more production-like storefront, catalog, and admin visual hierarchy
 - Swagger-documented admin endpoints for catalog, orders, inventory, payments, shipments, refunds, and audit logs
 
 ## Tech Stack
@@ -187,6 +189,7 @@ Payments:
 
 Admin:
 
+- `GET /api/admin/dashboard/summary`
 - `POST /api/admin/products`
 - `PUT /api/admin/products/{productId}`
 - `DELETE /api/admin/products/{productId}`
@@ -245,6 +248,9 @@ Implemented and verified:
   - reusable operational tag catalog
   - tag assignment and removal on admin order results
   - refund summary metrics for live dashboard use
+- Operations dashboard:
+  - aggregate admin summary for order flow, queue pressure, and low-stock alerts
+  - frontend control-tower cards backed by live metrics instead of static placeholders
 - Customer data:
   - default address book
   - explicit address selection during order creation
@@ -277,15 +283,15 @@ ecom/
 Latest backend verification:
 
 ```powershell
-.\mvnw.cmd clean test
+.\mvnw.cmd test
 ```
 
 Latest verified results:
 
-- 27 backend tests passed
-- 34 backend tests passed
+- 35 backend tests passed
 - Flyway migrations applied through `V6`
 - Real end-to-end local verification covered:
+  - admin dashboard summary endpoint
   - address selection at order creation
   - order tag assignment
   - customer support ticket creation
@@ -306,9 +312,10 @@ Latest verified results:
 
 - Frontend lint passed
 - Frontend production build passed
+- Home, catalog, and admin pages were restyled into stronger dashboard-style layouts
 - Checkout page now creates orders with a selected address snapshot
 - Orders page now surfaces shipment placeholders, refund requests, and support ticket intake
-- Admin page now filters orders, assigns/removes tags, reviews refund requests, and updates support tickets against live APIs
+- Admin page now surfaces live operations metrics, low-stock watchlists, and filters orders while reviewing refunds and support tickets against live APIs
 
 ## Notes
 

@@ -36,15 +36,17 @@ export function AppShell() {
             <div className="brand-mark">
               <span className="brand-badge">EC</span>
               <div className="brand-copy">
-                <span className="brand-title">Simulated Commerce Control Room</span>
+                <span className="brand-title">Northline Commerce Suite</span>
                 <span className="brand-subtitle">
-                  React 19 storefront shell for your Spring Boot 4 backend
+                  Storefront, service, and operations workspace for the live
+                  Spring Boot platform
                 </span>
               </div>
             </div>
 
             <div className="topbar-status">
               <span className="signal">API {apiBaseUrl}</span>
+              <span className="signal">Java 21 | MySQL 8.4 | Redis 7.4</span>
               {user ? (
                 <span className={`status-pill ${user.role.toLowerCase()}`}>
                   {user.username} | {user.role}
@@ -129,8 +131,8 @@ export function AppShell() {
       <footer className="footer">
         <div className="footer-row">
           <p className="footer-copy">
-            Built for the current Java 21 + MySQL 8.4 + Redis stack in this
-            workspace.
+            Enterprise workflow baseline running on Java 21, MySQL 8.4, and
+            Redis 7.4.
           </p>
           <p className="footer-copy">React 19 | Vite 7 | TypeScript 5.9</p>
         </div>

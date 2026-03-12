@@ -2,6 +2,7 @@ package com.eason.ecom.repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +22,30 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
     @EntityGraph(attributePaths = {"order", "order.user"})
     @Query("select supportTicket from SupportTicket supportTicket where supportTicket.id = :ticketId")
     Optional<SupportTicket> findWithDetailsById(@Param("ticketId") Long ticketId);
+
+    @Query("""
+            select supportTicket.ticketStatus, count(supportTicket)
+            from SupportTicket supportTicket
+            group by supportTicket.ticketStatus
+            """)
+    List<Object[]> summarizeByStatus();
+
+    @Query("""
+            select count(supportTicket)
+            from SupportTicket supportTicket
+            where supportTicket.ticketStatus in :statuses
+            """)
+    long countByTicketStatusIn(@Param("statuses") Collection<com.eason.ecom.entity.SupportTicketStatus> statuses);
+
+    @Query("""
+            select count(supportTicket)
+            from SupportTicket supportTicket
+            where supportTicket.priority = :priority
+              and supportTicket.ticketStatus in :statuses
+            """)
+    long countByPriorityAndTicketStatusIn(
+            @Param("priority") com.eason.ecom.entity.SupportTicketPriority priority,
+            @Param("statuses") Collection<com.eason.ecom.entity.SupportTicketStatus> statuses);
 
     @Override
     @EntityGraph(attributePaths = {"order", "order.user"})

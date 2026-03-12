@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import type {
+  AdminDashboardSummary,
   ApiResponse,
   Order,
   OrderTag,
@@ -51,6 +52,14 @@ export async function searchAdminOrders(
         size: query.size ?? 8,
       },
     },
+  )
+
+  return data.data
+}
+
+export async function getAdminDashboardSummary(): Promise<AdminDashboardSummary> {
+  const { data } = await apiClient.get<ApiResponse<AdminDashboardSummary>>(
+    '/api/admin/dashboard/summary',
   )
 
   return data.data

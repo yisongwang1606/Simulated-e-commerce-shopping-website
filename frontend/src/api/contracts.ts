@@ -229,6 +229,39 @@ export interface RefundSummary {
   settledAmount: number
 }
 
+export interface DashboardMetricBreakdown {
+  code: string
+  label: string
+  count: number
+}
+
+export interface LowStockAlert {
+  productId: number
+  sku: string
+  name: string
+  category: string
+  stock: number
+  safetyStock: number
+  shortage: number
+}
+
+export interface AdminDashboardSummary {
+  totalOrders: number
+  ordersCreatedToday: number
+  fulfillmentInFlight: number
+  capturedRevenue30Days: number
+  averageOrderValue30Days: number
+  activeRefundCases: number
+  openSupportTickets: number
+  urgentSupportTickets: number
+  activeCatalogProducts: number
+  featuredProducts: number
+  lowStockProducts: number
+  orderStatusBreakdown: DashboardMetricBreakdown[]
+  supportStatusBreakdown: DashboardMetricBreakdown[]
+  lowStockAlerts: LowStockAlert[]
+}
+
 export interface SupportTicket {
   id: number
   orderId: number

@@ -18,6 +18,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
   minute: '2-digit',
 })
 
+const integerFormatter = new Intl.NumberFormat('en-CA', {
+  maximumFractionDigits: 0,
+})
+
 export function formatCurrency(value: number): string {
   return currencyFormatter.format(value)
 }
@@ -28,4 +32,8 @@ export function formatDate(value: string): string {
 
 export function formatDateTime(value: string): string {
   return dateTimeFormatter.format(new Date(value))
+}
+
+export function formatInteger(value: number): string {
+  return integerFormatter.format(value)
 }

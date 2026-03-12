@@ -3,6 +3,7 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import {
   assignOrderTag,
   createProduct,
+  getAdminDashboardSummary,
   getAdminRefundRequests,
   getAdminSupportTickets,
   getOrderTagCatalog,
@@ -14,6 +15,7 @@ import {
 } from '../api/admin'
 import { getProducts } from '../api/products'
 import type {
+  AdminDashboardSummary,
   Order,
   OrderTag,
   PagedResponse,
@@ -25,7 +27,12 @@ import type {
   SupportTicketUpdateInput,
 } from '../api/contracts'
 import { extractErrorMessage } from '../shared/error'
-import { formatCurrency, formatDate, formatDateTime } from '../shared/formatters'
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatInteger,
+} from '../shared/formatters'
 import { LoadingState } from '../shared/ui/LoadingState'
 import { SectionHeading } from '../shared/ui/SectionHeading'
 import { StatusPill } from '../shared/ui/StatusPill'
@@ -68,6 +75,8 @@ export function AdminPage() {
   const [supportTicketPage, setSupportTicketPage] = useState<
     PagedResponse<SupportTicket> | null
   >(null)
+  const [dashboardSummary, setDashboardSummary] =
+    useState<AdminDashboardSummary | null>(null)
   const [refundSummary, setRefundSummary] = useState<RefundSummary | null>(null)
   const [orderTagCatalog, setOrderTagCatalog] = useState<OrderTag[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -147,8 +156,17 @@ export function AdminPage() {
         const activeSupportFilters =
           options?.supportFilters ?? supportFiltersRef.current
 
-        const [ordersData, productData, refundData, summaryData, tagsData, supportData] =
+        const [
+          dashboardData,
+          ordersData,
+          productData,
+          refundData,
+          summaryData,
+          tagsData,
+          supportData,
+        ] =
           await Promise.all([
+            getAdminDashboardSummary(),
             searchAdminOrders({
               ...activeOrderFilters,
               page: options?.orderPage ?? orderPageRef.current,
@@ -169,6 +187,7 @@ export function AdminPage() {
             }),
           ])
 
+        setDashboardSummary(dashboardData)
         setOrderPage(ordersData)
         setProducts(productData.items)
         setRefundPage(refundData)
@@ -1206,52 +1225,262 @@ export function AdminPage() {
     return <LoadingState title="Loading admin control data..." />
   }
 
+  const orderFlowVisible =
+    dashboardSummary?.orderStatusBreakdown.filter((metric) => metric.count > 0) ?? []
+  const supportFlowVisible =
+    dashboardSummary?.supportStatusBreakdown.filter((metric) => metric.count > 0) ?? []
+  const openOperationalLoad =
+    (dashboardSummary?.activeRefundCases ?? 0) +
+    (dashboardSummary?.openSupportTickets ?? 0)
+
   return (
     <div className="stack-lg">
-      <section className="surface stack-lg">
-        <SectionHeading
-          description="This admin console now handles enterprise-style catalog intake, order triage, refund analytics, and support ticket operations."
-          eyebrow="Admin"
-          title="Commerce operations control tower"
-        />
+      <section className="hero admin-hero">
+        <div className="hero-grid admin-hero-grid">
+          <div className="stack-lg">
+            <div className="hero-copy-block admin-hero-copy">
+              <p className="eyebrow">Admin command centre</p>
+              <h1 className="hero-title">
+                Operations, service, and catalog work in one enterprise desk.
+              </h1>
+              <p className="hero-copy">
+                The admin console now acts like a real commerce control room:
+                live queue pressure, low-stock watchlists, refund exposure, and
+                searchable order operations feed the same workspace.
+              </p>
+            </div>
+            <div className="hero-actions">
+              <span className="signal">
+                {formatInteger(dashboardSummary?.ordersCreatedToday ?? 0)} orders created
+                today
+              </span>
+              <span className="signal">
+                {formatInteger(openOperationalLoad)} active service cases
+              </span>
+              <span className="signal">
+                {formatInteger(dashboardSummary?.lowStockProducts ?? 0)} low-stock alerts
+              </span>
+            </div>
+          </div>
 
-        {message ? <div className="message">{message}</div> : null}
-        {errorMessage ? <div className="message error">{errorMessage}</div> : null}
-
-        {refundSummary ? (
-          <div className="metric-grid">
-            <article className="stat-card">
-              <p className="eyebrow">Refund pipeline</p>
-              <strong>{refundSummary.totalRequests}</strong>
-              <span className="supporting-copy">Total refund requests</span>
-            </article>
-            <article className="stat-card">
-              <p className="eyebrow">Open workload</p>
-              <strong>{refundSummary.requestedCount + refundSummary.approvedCount}</strong>
+          <div className="admin-hero-side">
+            <article className="admin-spotlight-card">
+              <p className="eyebrow">30-day captured revenue</p>
+              <strong>{formatCurrency(dashboardSummary?.capturedRevenue30Days ?? 0)}</strong>
               <span className="supporting-copy">
-                Requested or approved refunds still in flight
+                Rolling paid and fulfilled order value across the last 30 days.
               </span>
             </article>
-            <article className="stat-card">
-              <p className="eyebrow">Requested amount</p>
-              <strong>{formatCurrency(refundSummary.requestedAmount)}</strong>
-              <span className="supporting-copy">Customer claims awaiting settlement</span>
-            </article>
-            <article className="stat-card">
-              <p className="eyebrow">Settled amount</p>
-              <strong>{formatCurrency(refundSummary.settledAmount)}</strong>
-              <span className="supporting-copy">Confirmed refunds already settled</span>
+            <article className="admin-spotlight-card">
+              <p className="eyebrow">Average order value</p>
+              <strong>{formatCurrency(dashboardSummary?.averageOrderValue30Days ?? 0)}</strong>
+              <span className="supporting-copy">
+                Useful for checking whether promotions and support costs stay in balance.
+              </span>
             </article>
           </div>
-        ) : null}
+        </div>
+      </section>
 
-        <div className="admin-grid">
-          {renderProductSection()}
+      {message ? <div className="message">{message}</div> : null}
+      {errorMessage ? <div className="message error">{errorMessage}</div> : null}
+
+      {dashboardSummary ? (
+        <section className="surface stack-lg">
+          <SectionHeading
+            description="The dashboard keeps current business pressure, service queue health, and stock exposure visible before you touch filters or forms."
+            eyebrow="Operations overview"
+            title="Daily health snapshot"
+          />
+
+          <div className="metric-grid dashboard-summary-grid">
+            <article className="stat-card stat-card-strong">
+              <p className="eyebrow">Order load</p>
+              <strong>{formatInteger(dashboardSummary.totalOrders)}</strong>
+              <span className="supporting-copy">All recorded orders in the platform</span>
+            </article>
+            <article className="stat-card">
+              <p className="eyebrow">Fulfillment in flight</p>
+              <strong>{formatInteger(dashboardSummary.fulfillmentInFlight)}</strong>
+              <span className="supporting-copy">Orders still moving through payment or delivery</span>
+            </article>
+            <article className="stat-card">
+              <p className="eyebrow">Open refunds</p>
+              <strong>{formatInteger(dashboardSummary.activeRefundCases)}</strong>
+              <span className="supporting-copy">Refund cases still requiring operational action</span>
+            </article>
+            <article className="stat-card">
+              <p className="eyebrow">Support backlog</p>
+              <strong>{formatInteger(dashboardSummary.openSupportTickets)}</strong>
+              <span className="supporting-copy">Customer service tickets not yet resolved</span>
+            </article>
+            <article className="stat-card">
+              <p className="eyebrow">Urgent tickets</p>
+              <strong>{formatInteger(dashboardSummary.urgentSupportTickets)}</strong>
+              <span className="supporting-copy">Cases escalated for immediate service response</span>
+            </article>
+            <article className="stat-card">
+              <p className="eyebrow">Active catalog</p>
+              <strong>{formatInteger(dashboardSummary.activeCatalogProducts)}</strong>
+              <span className="supporting-copy">
+                Sellable items, with {formatInteger(dashboardSummary.featuredProducts)} featured
+              </span>
+            </article>
+          </div>
+
+          <div className="dashboard-board-grid">
+            <article className="surface stack dashboard-panel">
+              <div className="dashboard-panel-header">
+                <div>
+                  <p className="eyebrow">Order flow</p>
+                  <h3 className="card-title">Lifecycle pressure</h3>
+                </div>
+                <span className="signal">
+                  {formatInteger(orderFlowVisible.length)} active statuses
+                </span>
+              </div>
+
+              <div className="dashboard-breakdown-list">
+                {orderFlowVisible.map((metric) => (
+                  <div className="dashboard-breakdown-row" key={metric.code}>
+                    <div className="dashboard-breakdown-copy">
+                      <strong>{metric.label}</strong>
+                      <span className="supporting-copy">
+                        {formatInteger(metric.count)} orders
+                      </span>
+                    </div>
+                    <div className="dashboard-breakdown-bar">
+                      <span
+                        style={{
+                          width: `${Math.max(
+                            16,
+                            Math.round(
+                              (metric.count /
+                                Math.max(...orderFlowVisible.map((entry) => entry.count), 1)) *
+                                100,
+                            ),
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="surface stack dashboard-panel">
+              <div className="dashboard-panel-header">
+                <div>
+                  <p className="eyebrow">Service queue</p>
+                  <h3 className="card-title">Support and refunds</h3>
+                </div>
+                <span className="signal">
+                  {formatInteger(openOperationalLoad)} unresolved cases
+                </span>
+              </div>
+
+              <div className="dashboard-stack-grid">
+                <div className="info-card">
+                  <p className="eyebrow">Refund request exposure</p>
+                  <strong>{formatCurrency(refundSummary?.requestedAmount ?? 0)}</strong>
+                  <span className="supporting-copy">
+                    Awaiting review or settlement across the active refund pipeline.
+                  </span>
+                </div>
+                <div className="info-card">
+                  <p className="eyebrow">Refunds settled</p>
+                  <strong>{formatCurrency(refundSummary?.settledAmount ?? 0)}</strong>
+                  <span className="supporting-copy">
+                    Confirmed finance outcome already recorded back into the order flow.
+                  </span>
+                </div>
+              </div>
+
+              <div className="dashboard-breakdown-list compact">
+                {supportFlowVisible.map((metric) => (
+                  <div className="dashboard-breakdown-row" key={metric.code}>
+                    <div className="dashboard-breakdown-copy">
+                      <strong>{metric.label}</strong>
+                      <span className="supporting-copy">
+                        {formatInteger(metric.count)} tickets
+                      </span>
+                    </div>
+                    <div className="dashboard-breakdown-bar support-tone">
+                      <span
+                        style={{
+                          width: `${Math.max(
+                            16,
+                            Math.round(
+                              (metric.count /
+                                Math.max(...supportFlowVisible.map((entry) => entry.count), 1)) *
+                                100,
+                            ),
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="surface stack dashboard-panel">
+              <div className="dashboard-panel-header">
+                <div>
+                  <p className="eyebrow">Inventory risk</p>
+                  <h3 className="card-title">Low-stock watchlist</h3>
+                </div>
+                <span className="signal">
+                  {formatInteger(dashboardSummary.lowStockProducts)} flagged SKUs
+                </span>
+              </div>
+
+              {dashboardSummary.lowStockAlerts.length > 0 ? (
+                <div className="watchlist">
+                  {dashboardSummary.lowStockAlerts.map((alert) => (
+                    <article className="watchlist-item" key={alert.productId}>
+                      <div className="watchlist-main">
+                        <strong>{alert.name}</strong>
+                        <span className="supporting-copy">
+                          {alert.sku} | {alert.category}
+                        </span>
+                      </div>
+                      <div className="watchlist-metric">
+                        <span>{alert.stock} on hand</span>
+                        <strong>{alert.shortage} below safety</strong>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="info-card">
+                  <strong>No immediate stock pressure</strong>
+                  <span className="supporting-copy">
+                    Active sellable products are currently above their safety stock thresholds.
+                  </span>
+                </div>
+              )}
+            </article>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="surface stack-lg">
+        <SectionHeading
+          description="Use the workbench for day-to-day execution: search orders, review refunds, keep the support queue moving, and update the sellable catalog."
+          eyebrow="Operations workbench"
+          title="Queue handling and catalog control"
+        />
+
+        <div className="admin-workbench-grid">
           <div className="stack-lg">
             {renderOrderDesk()}
-            {renderRefundDesk()}
-            {renderSupportDesk()}
+            <div className="admin-secondary-grid">
+              {renderRefundDesk()}
+              {renderSupportDesk()}
+            </div>
           </div>
+          {renderProductSection()}
         </div>
       </section>
     </div>

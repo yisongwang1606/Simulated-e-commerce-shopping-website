@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { getCategories, getPopularProducts } from '../api/products'
 import type { PopularProduct } from '../api/contracts'
 import { extractErrorMessage } from '../shared/error'
-import { formatCurrency } from '../shared/formatters'
+import { formatCurrency, formatInteger } from '../shared/formatters'
 import { LoadingState } from '../shared/ui/LoadingState'
 import { ProductCard } from '../shared/ui/ProductCard'
 import { SectionHeading } from '../shared/ui/SectionHeading'
@@ -48,15 +48,15 @@ export function HomePage() {
         <div className="hero-grid">
           <div className="stack-lg">
             <div className="hero-copy-block">
-              <p className="eyebrow">React storefront shell</p>
+              <p className="eyebrow">Commerce workspace</p>
               <h1 className="hero-title">
-                A frontend control layer ready for products, carts, orders, and
-                admin ops.
+                The storefront now feels like the customer-facing side of a
+                real operations platform.
               </h1>
               <p className="hero-copy">
-                This is the first working React pass: routed, token-aware, and
-                wired to your live Swagger-documented backend instead of demo
-                JSON.
+                Customers can browse live inventory, move through cart and
+                order flows, and step into after-sales service while the admin
+                workspace manages the same data in parallel.
               </p>
             </div>
 
@@ -73,26 +73,53 @@ export function HomePage() {
                 rel="noreferrer"
                 target="_blank"
               >
-                Open Swagger
+                Review API docs
               </a>
+            </div>
+
+            <div className="hero-story-grid">
+              <article className="story-card">
+                <p className="eyebrow">Storefront</p>
+                <strong>Live catalog and cart</strong>
+                <span className="supporting-copy">
+                  Product search, stock-aware detail pages, Redis-backed cart,
+                  and address-based checkout.
+                </span>
+              </article>
+              <article className="story-card">
+                <p className="eyebrow">Service</p>
+                <strong>After-sales handling</strong>
+                <span className="supporting-copy">
+                  Refund requests, shipment visibility, and support tickets
+                  live next to each order.
+                </span>
+              </article>
+              <article className="story-card">
+                <p className="eyebrow">Operations</p>
+                <strong>Admin control tower</strong>
+                <span className="supporting-copy">
+                  Search orders, tag issues, review refunds, manage support,
+                  and watch stock risk from one console.
+                </span>
+              </article>
             </div>
           </div>
 
           <div className="metric-grid">
             <article className="stat-card">
               <span className="eyebrow">Catalog breadth</span>
-              <strong>{categories.length}</strong>
-              <span className="supporting-copy">Distinct product categories</span>
+              <strong>{formatInteger(categories.length)}</strong>
+              <span className="supporting-copy">Distinct live product categories</span>
             </article>
             <article className="stat-card">
               <span className="eyebrow">Trending now</span>
-              <strong>{popularProducts.length}</strong>
-              <span className="supporting-copy">Popular products from Redis</span>
+              <strong>{formatInteger(popularProducts.length)}</strong>
+              <span className="supporting-copy">Popular products ranked from Redis</span>
             </article>
             <article className="stat-card">
-              <span className="eyebrow">Currency mode</span>
+              <span className="eyebrow">Store currency</span>
               <strong>{formatCurrency(89.99)}</strong>
-              <span className="supporting-copy">Formatted in en-CA CAD</span>
+              <span className="supporting-copy">Formatted for en-CA checkout flow</span>
             </article>
           </div>
         </div>
@@ -102,7 +129,7 @@ export function HomePage() {
 
       <section className="surface stack-lg">
         <SectionHeading
-          description="These cards come from the live /api/products/popular endpoint and give the frontend a realistic hero feed."
+          description="These cards come from the live /api/products/popular endpoint and give the homepage a real merchandising rail instead of placeholder content."
           eyebrow="Popular feed"
           title="Redis-backed product momentum"
         />
@@ -117,40 +144,43 @@ export function HomePage() {
       <section className="home-grid">
         <article className="surface stack">
           <SectionHeading
-            description="Customer-facing features are already mapped to your backend routes."
+            description="The customer side is no longer just a mock shell. Every state on this panel calls real backend routes."
             eyebrow="Flow"
-            title="User journey"
+            title="Customer journey"
           />
           <div className="chip-row">
             <span className="chip">Register / Login</span>
             <span className="chip">Browse products</span>
             <span className="chip">Cart in Redis</span>
+            <span className="chip">Address checkout</span>
             <span className="chip">Create orders</span>
           </div>
         </article>
 
         <article className="surface stack">
           <SectionHeading
-            description="Admin screens are separated behind JWT role checks."
+            description="The operations workspace is role-protected and tied to the same order, refund, and support data as the storefront."
             eyebrow="Ops"
             title="Back office"
           />
           <div className="chip-row">
+            <span className="chip">Dashboard summary</span>
             <span className="chip">Create products</span>
-            <span className="chip">Inspect orders</span>
-            <span className="chip">Review status</span>
+            <span className="chip">Search orders</span>
+            <span className="chip">Review refunds</span>
+            <span className="chip">Support tickets</span>
           </div>
         </article>
 
         <article className="surface stack">
           <SectionHeading
-            description="Use these credentials while the frontend shell is still being expanded."
+            description="Use these seeded accounts while validating the enterprise workflow from both customer and admin views."
             eyebrow="Demo access"
             title="Ready-made accounts"
           />
           <div className="stack">
-            <span className="signal">Admin@example.com / 123456</span>
-            <span className="signal">Jack@example.com / 123456</span>
+            <span className="signal">admin@ecom.local / Admin123!</span>
+            <span className="signal">demo@ecom.local / Demo123!</span>
           </div>
         </article>
       </section>

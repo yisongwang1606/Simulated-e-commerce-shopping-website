@@ -10,6 +10,7 @@ import {
 import { getCategories, getProducts } from '../api/products'
 import type { PagedResponse, Product } from '../api/contracts'
 import { extractErrorMessage } from '../shared/error'
+import { formatInteger } from '../shared/formatters'
 import { EmptyState } from '../shared/ui/EmptyState'
 import { LoadingState } from '../shared/ui/LoadingState'
 import { ProductCard } from '../shared/ui/ProductCard'
@@ -91,10 +92,30 @@ export function CatalogPage() {
     <div className="stack-lg">
       <section className="surface stack-lg">
         <SectionHeading
-          description="The catalog page talks directly to /api/products with search, category filtering, and paging."
+          description="Browse the live catalog with server-side search, category filtering, and manual page selection that stays anchored in your current viewport."
           eyebrow="Catalog"
           title="Live product browsing"
         />
+
+        <div className="metric-grid catalog-summary-grid">
+          <article className="stat-card">
+            <p className="eyebrow">Visible catalog</p>
+            <strong>{formatInteger(products?.totalElements ?? 0)}</strong>
+            <span className="supporting-copy">Products matching the current filters</span>
+          </article>
+          <article className="stat-card">
+            <p className="eyebrow">Category mix</p>
+            <strong>{formatInteger(categories.length)}</strong>
+            <span className="supporting-copy">Active product categories</span>
+          </article>
+          <article className="stat-card">
+            <p className="eyebrow">Current page</p>
+            <strong>
+              {formatInteger(page + 1)} / {formatInteger(totalPages)}
+            </strong>
+            <span className="supporting-copy">Direct page selection is available below</span>
+          </article>
+        </div>
 
         <div className="toolbar">
           <div className="field" style={{ minWidth: 'min(100%, 320px)' }}>
@@ -123,8 +144,13 @@ export function CatalogPage() {
         </div>
 
         <div className="catalog-grid">
-          <aside className="surface stack">
+          <aside className="surface stack filter-rail">
             <p className="eyebrow">Categories</p>
+            <h3 className="card-title">Filter the assortment</h3>
+            <p className="supporting-copy">
+              Narrow the grid by business category while keeping your current page
+              position stable.
+            </p>
             <div className="chip-row">
               <button
                 className={category === '' ? 'chip active' : 'chip'}
@@ -163,6 +189,18 @@ export function CatalogPage() {
               <LoadingState title="Refreshing the product grid..." />
             ) : products && products.items.length > 0 ? (
               <>
+                <div className="toolbar catalog-results-toolbar">
+                  <div className="stack">
+                    <p className="eyebrow">Results</p>
+                    <h3 className="card-title">
+                      {formatInteger(products.items.length)} products on this page
+                    </h3>
+                  </div>
+                  <span className="signal">
+                    Showing page {formatInteger(page + 1)} of {formatInteger(totalPages)}
+                  </span>
+                </div>
+
                 <div className="product-grid">
                   {products.items.map((product) => (
                     <ProductCard key={product.id} product={product} />

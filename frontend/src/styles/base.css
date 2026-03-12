@@ -162,8 +162,16 @@ button {
 .catalog-grid,
 .home-grid,
 .admin-grid,
+.admin-workbench-grid,
+.admin-secondary-grid,
 .product-grid,
 .metric-grid,
+.dashboard-board-grid,
+.dashboard-stack-grid,
+.dashboard-summary-grid,
+.catalog-summary-grid,
+.hero-story-grid,
+.watchlist,
 .detail-grid,
 .form-columns {
   display: grid;
@@ -179,6 +187,21 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.dashboard-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-board-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr) minmax(280px, 0.9fr);
+  align-items: start;
+}
+
+.dashboard-stack-grid,
+.hero-story-grid,
+.watchlist {
+  grid-template-columns: 1fr;
+}
+
 .catalog-grid {
   grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
   align-items: start;
@@ -190,6 +213,16 @@ button {
 
 .admin-grid {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: start;
+}
+
+.admin-workbench-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.88fr);
+  align-items: start;
+}
+
+.admin-secondary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -259,7 +292,8 @@ button {
 
 .brand-copy,
 .section-heading,
-.hero-copy-block {
+.hero-copy-block,
+.admin-hero-side {
   min-width: 0;
 }
 
@@ -293,8 +327,12 @@ button {
   .catalog-grid,
   .detail-grid,
   .admin-grid,
+  .admin-workbench-grid,
+  .admin-secondary-grid,
   .home-grid,
   .metric-grid,
+  .dashboard-summary-grid,
+  .dashboard-board-grid,
   .form-columns {
     grid-template-columns: 1fr;
   }

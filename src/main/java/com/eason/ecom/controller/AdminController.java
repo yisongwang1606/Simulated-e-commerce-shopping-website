@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eason.ecom.dto.ApiResponse;
+import com.eason.ecom.dto.AdminDashboardSummaryResponse;
 import com.eason.ecom.dto.AuditLogResponse;
 import com.eason.ecom.dto.InventoryAdjustmentRequest;
 import com.eason.ecom.dto.InventoryAdjustmentResponse;
@@ -41,6 +42,7 @@ import com.eason.ecom.dto.SupportTicketUpdateRequest;
 import com.eason.ecom.entity.Product;
 import com.eason.ecom.security.AuthenticatedUser;
 import com.eason.ecom.service.AuditLogService;
+import com.eason.ecom.service.AdminDashboardService;
 import com.eason.ecom.service.InventoryService;
 import com.eason.ecom.service.OrderService;
 import com.eason.ecom.service.OrderTagService;
@@ -75,6 +77,7 @@ public class AdminController {
     private final RefundService refundService;
     private final OrderTagService orderTagService;
     private final SupportTicketService supportTicketService;
+    private final AdminDashboardService adminDashboardService;
 
     public AdminController(
             ProductService productService,
@@ -86,7 +89,8 @@ public class AdminController {
             OrderInternalNoteService orderInternalNoteService,
             RefundService refundService,
             OrderTagService orderTagService,
-            SupportTicketService supportTicketService) {
+            SupportTicketService supportTicketService,
+            AdminDashboardService adminDashboardService) {
         this.productService = productService;
         this.orderService = orderService;
         this.inventoryService = inventoryService;
@@ -97,6 +101,20 @@ public class AdminController {
         this.refundService = refundService;
         this.orderTagService = orderTagService;
         this.supportTicketService = supportTicketService;
+        this.adminDashboardService = adminDashboardService;
+    }
+
+    @Operation(
+            summary = "Get admin operations dashboard summary",
+            description = "Returns enterprise-style operational summary cards for orders, refunds, support queue health, catalog readiness, and low-stock watchlists.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Dashboard summary loaded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin role required")
+    })
+    @GetMapping("/dashboard/summary")
+    public ResponseEntity<ApiResponse<AdminDashboardSummaryResponse>> getDashboardSummary() {
+        return ApiResponseFactory.ok(adminDashboardService.getSummary());
     }
 
     @Operation(
