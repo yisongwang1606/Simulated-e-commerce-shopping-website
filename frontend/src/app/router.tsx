@@ -2,7 +2,8 @@ import { createBrowserRouter } from 'react-router-dom'
 
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
-import { AppShell } from './shell/AppShell'
+import { AdminShell } from './shell/AdminShell'
+import { CustomerShell } from './shell/CustomerShell'
 import { AdminPage } from '../pages/AdminPage'
 import { CartPage } from '../pages/CartPage'
 import { CatalogPage } from '../pages/CatalogPage'
@@ -15,7 +16,7 @@ import { ProductDetailPage } from '../pages/ProductDetailPage'
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <AppShell />,
+    element: <CustomerShell />,
     children: [
       {
         index: true,
@@ -31,7 +32,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'login',
-        element: <LoginPage />,
+        element: <LoginPage portal="customer" />,
       },
       {
         element: <ProtectedRoute />,
@@ -47,17 +48,31 @@ export const router = createBrowserRouter([
         ],
       },
       {
-        element: <AdminRoute />,
-        children: [
-          {
-            path: 'admin',
-            element: <AdminPage />,
-          },
-        ],
-      },
-      {
         path: '*',
         element: <NotFoundPage />,
+      },
+    ],
+  },
+  {
+    path: '/admin/login',
+    element: <LoginPage portal="admin" />,
+  },
+  {
+    path: '/admin',
+    element: <AdminRoute />,
+    children: [
+      {
+        element: <AdminShell />,
+        children: [
+          {
+            index: true,
+            element: <AdminPage />,
+          },
+          {
+            path: '*',
+            element: <NotFoundPage />,
+          },
+        ],
       },
     ],
   },

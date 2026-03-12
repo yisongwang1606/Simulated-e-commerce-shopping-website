@@ -48,15 +48,14 @@ export function HomePage() {
         <div className="hero-grid">
           <div className="stack-lg">
             <div className="hero-copy-block">
-              <p className="eyebrow">Commerce workspace</p>
+              <p className="eyebrow">Customer storefront</p>
               <h1 className="hero-title">
-                The storefront now feels like the customer-facing side of a
-                real operations platform.
+                Shop the live catalog and manage the full order journey in one place.
               </h1>
               <p className="hero-copy">
-                Customers can browse live inventory, move through cart and
-                order flows, and step into after-sales service while the admin
-                workspace manages the same data in parallel.
+                Browse live inventory, move from cart to checkout, and handle
+                delivery, refund, and support follow-up without leaving the
+                customer portal.
               </p>
             </div>
 
@@ -65,21 +64,13 @@ export function HomePage() {
                 Browse catalog
               </Link>
               <Link className="button-outline" to="/login">
-                Sign in with demo users
+                Sign in to shop
               </Link>
-              <a
-                className="button-ghost"
-                href="http://127.0.0.1:8080/swagger-ui.html"
-                rel="noreferrer"
-                target="_blank"
-              >
-                Review API docs
-              </a>
             </div>
 
             <div className="hero-story-grid">
               <article className="story-card">
-                <p className="eyebrow">Storefront</p>
+                <p className="eyebrow">Browse</p>
                 <strong>Live catalog and cart</strong>
                 <span className="supporting-copy">
                   Product search, stock-aware detail pages, Redis-backed cart,
@@ -87,19 +78,19 @@ export function HomePage() {
                 </span>
               </article>
               <article className="story-card">
-                <p className="eyebrow">Service</p>
-                <strong>After-sales handling</strong>
+                <p className="eyebrow">Checkout</p>
+                <strong>Address-based order placement</strong>
                 <span className="supporting-copy">
-                  Refund requests, shipment visibility, and support tickets
-                  live next to each order.
+                  Choose a delivery address, place an order, and keep the
+                  customer-facing flow simple and direct.
                 </span>
               </article>
               <article className="story-card">
-                <p className="eyebrow">Operations</p>
-                <strong>Admin control tower</strong>
+                <p className="eyebrow">After-sales</p>
+                <strong>Delivery, refunds, and support</strong>
                 <span className="supporting-copy">
-                  Search orders, tag issues, review refunds, manage support,
-                  and watch stock risk from one console.
+                  Track shipment progress, request refunds, and open support
+                  cases from the order history.
                 </span>
               </article>
             </div>
@@ -159,28 +150,28 @@ export function HomePage() {
 
         <article className="surface stack">
           <SectionHeading
-            description="The operations workspace is role-protected and tied to the same order, refund, and support data as the storefront."
-            eyebrow="Ops"
-            title="Back office"
+            description="The customer portal keeps the purchase journey focused on shopping, checkout, and service follow-up."
+            eyebrow="Service"
+            title="Customer tools"
           />
           <div className="chip-row">
-            <span className="chip">Dashboard summary</span>
-            <span className="chip">Create products</span>
-            <span className="chip">Search orders</span>
-            <span className="chip">Review refunds</span>
-            <span className="chip">Support tickets</span>
+            <span className="chip">Shipment tracking</span>
+            <span className="chip">Refund requests</span>
+            <span className="chip">Support cases</span>
+            <span className="chip">Order history</span>
+            <span className="chip">Address book</span>
           </div>
         </article>
 
         <article className="surface stack">
           <SectionHeading
-            description="Use these seeded accounts while validating the enterprise workflow from both customer and admin views."
+            description="Use the seeded customer account for checkout, order history, refunds, and support testing."
             eyebrow="Demo access"
-            title="Ready-made accounts"
+            title="Ready-made customer account"
           />
           <div className="stack">
-            <span className="signal">admin@ecom.local / Admin123!</span>
             <span className="signal">demo@ecom.local / Demo123!</span>
+            <span className="signal">Guest browsing is also available from the catalog.</span>
           </div>
         </article>
       </section>

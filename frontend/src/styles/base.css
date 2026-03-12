@@ -96,6 +96,18 @@ button {
   background: rgba(31, 106, 89, 0.14);
 }
 
+.page-shell.admin-shell::before {
+  top: 72px;
+  right: -104px;
+  background: rgba(31, 106, 89, 0.26);
+}
+
+.page-shell.admin-shell::after {
+  bottom: 88px;
+  left: -96px;
+  background: rgba(178, 76, 36, 0.18);
+}
+
 .topbar,
 .content,
 .footer {

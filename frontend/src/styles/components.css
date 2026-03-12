@@ -38,6 +38,12 @@
   box-shadow: 0 28px 72px rgba(17, 24, 25, 0.34);
 }
 
+.topbar-card.admin-topbar {
+  background:
+    linear-gradient(150deg, rgba(14, 18, 24, 0.98), rgba(18, 63, 76, 0.9)),
+    rgba(17, 24, 25, 0.95);
+}
+
 .topbar-card .brand-title,
 .topbar-card .nav-link.active,
 .topbar-card .nav-link:hover,
@@ -89,6 +95,11 @@
   box-shadow: 0 14px 32px rgba(178, 76, 36, 0.25);
 }
 
+.topbar-card.admin-topbar .brand-badge {
+  background: linear-gradient(145deg, #1f6a59, #4b86d8);
+  box-shadow: 0 14px 32px rgba(31, 106, 89, 0.28);
+}
+
 .nav-link,
 .ghost-link {
   padding: 10px 14px;
@@ -103,6 +114,10 @@
   transform: translateY(-1px);
   color: var(--ink);
   background: rgba(255, 255, 255, 0.78);
+}
+
+.portal-switch-link {
+  justify-self: start;
 }
 
 .nav-row {
@@ -830,6 +845,37 @@ th {
 
 .login-card {
   width: min(520px, 100%);
+}
+
+.admin-login-wrap {
+  min-height: 100vh;
+}
+
+.admin-login-card {
+  color: #fff8ef;
+  background:
+    linear-gradient(150deg, rgba(18, 24, 32, 0.98), rgba(18, 63, 76, 0.9)),
+    rgba(17, 24, 25, 0.95);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-login-card .section-heading {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.admin-login-card .eyebrow,
+.admin-login-card .section-copy,
+.admin-login-card .supporting-copy,
+.admin-login-card .ghost-link {
+  color: rgba(255, 248, 239, 0.78);
+}
+
+.admin-login-card .signal,
+.admin-login-card .portal-switch-link {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff8ef;
 }
 
 .page-picker {

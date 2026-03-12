@@ -8,7 +8,7 @@ export function AdminRoute() {
   const location = useLocation()
 
   if (!token) {
-    return <Navigate replace state={{ from: location.pathname }} to="/login" />
+    return <Navigate replace state={{ from: location.pathname }} to="/admin/login" />
   }
 
   if (!isAdmin(user)) {

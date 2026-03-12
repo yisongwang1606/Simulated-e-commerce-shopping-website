@@ -3,22 +3,37 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { login } from '../api/auth'
 import type { LoginInput } from '../api/contracts'
-import { useSessionStore } from '../store/sessionStore'
 import { extractErrorMessage } from '../shared/error'
+import { setObjectField } from '../shared/state'
 import { SectionHeading } from '../shared/ui/SectionHeading'
+import { useSessionStore } from '../store/sessionStore'
 
 interface LocationState {
   from?: string
 }
 
-export function LoginPage() {
+interface LoginPageProps {
+  portal?: 'customer' | 'admin'
+}
+
+const customerCredentials: LoginInput = {
+  username: 'demo@ecom.local',
+  password: 'Demo123!',
+}
+
+const adminCredentials: LoginInput = {
+  username: 'admin@ecom.local',
+  password: 'Admin123!',
+}
+
+export function LoginPage({ portal = 'customer' }: LoginPageProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const setSession = useSessionStore((state) => state.setSession)
+  const isAdminPortal = portal === 'admin'
 
   const [form, setForm] = useState<LoginInput>({
-    username: 'Jack@example.com',
-    password: '123456',
+    ...(isAdminPortal ? adminCredentials : customerCredentials),
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -30,9 +45,16 @@ export function LoginPage() {
 
     try {
       const payload = await login(form)
+      if (isAdminPortal && payload.user.role !== 'ADMIN') {
+        setErrorMessage('This sign-in portal is restricted to admin accounts.')
+        return
+      }
+
       setSession(payload)
       const state = location.state as LocationState | null
-      navigate(state?.from ?? '/')
+      const fallbackPath =
+        payload.user.role === 'ADMIN' ? '/admin' : '/'
+      navigate(state?.from ?? fallbackPath)
     } catch (error) {
       setErrorMessage(extractErrorMessage(error))
     } finally {
@@ -41,12 +63,22 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login-wrap">
-      <section className="login-card stack-lg">
+    <div className={`login-wrap ${isAdminPortal ? 'admin-login-wrap' : ''}`.trim()}>
+      <section
+        className={`login-card stack-lg ${isAdminPortal ? 'admin-login-card' : ''}`.trim()}
+      >
         <SectionHeading
-          description="This screen stores the JWT locally and unlocks cart, orders, and admin routes without any mocked auth state."
-          eyebrow="Authentication"
-          title="Sign in to the simulated storefront"
+          description={
+            isAdminPortal
+              ? 'This admin-only sign-in unlocks the operations portal for order governance, refund review, support triage, and catalog control.'
+              : 'This customer sign-in stores the JWT locally and unlocks cart, orders, delivery follow-up, and after-sales actions.'
+          }
+          eyebrow={isAdminPortal ? 'Admin authentication' : 'Customer authentication'}
+          title={
+            isAdminPortal
+              ? 'Sign in to the operations portal'
+              : 'Sign in to the customer storefront'
+          }
         />
 
         {errorMessage ? <div className="message error">{errorMessage}</div> : null}
@@ -57,7 +89,9 @@ export function LoginPage() {
             <input
               id="username"
               onChange={(event) =>
-                setForm((current) => ({ ...current, username: event.target.value }))
+                setForm((current) =>
+                  setObjectField(current, 'username', event.target.value),
+                )
               }
               required
               value={form.username}
@@ -69,7 +103,9 @@ export function LoginPage() {
             <input
               id="password"
               onChange={(event) =>
-                setForm((current) => ({ ...current, password: event.target.value }))
+                setForm((current) =>
+                  setObjectField(current, 'password', event.target.value),
+                )
               }
               required
               type="password"
@@ -81,15 +117,34 @@ export function LoginPage() {
             <button className="button" disabled={isSubmitting} type="submit">
               {isSubmitting ? 'Signing in...' : 'Login'}
             </button>
-            <Link className="button-outline" to="/catalog">
-              Continue as guest
-            </Link>
+            {isAdminPortal ? (
+              <Link className="button-outline" to="/login">
+                Customer sign-in
+              </Link>
+            ) : (
+              <Link className="button-outline" to="/catalog">
+                Continue as guest
+              </Link>
+            )}
           </div>
         </form>
 
         <div className="stack">
-          <span className="signal">Customer: Jack@example.com / 123456</span>
-          <span className="signal">Admin: Admin@example.com / 123456</span>
+          {isAdminPortal ? (
+            <>
+              <span className="signal">Admin: admin@ecom.local / Admin123!</span>
+              <Link className="ghost-link portal-switch-link" to="/catalog">
+                Open customer storefront
+              </Link>
+            </>
+          ) : (
+            <>
+              <span className="signal">Customer: demo@ecom.local / Demo123!</span>
+              <Link className="ghost-link portal-switch-link" to="/admin/login">
+                Admin sign-in
+              </Link>
+            </>
+          )}
         </div>
       </section>
     </div>

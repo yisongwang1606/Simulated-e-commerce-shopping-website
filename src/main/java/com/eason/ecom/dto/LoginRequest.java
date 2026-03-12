@@ -5,8 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(name = "LoginRequest", description = "Payload for logging in with username or email")
 public record LoginRequest(
-        @Schema(description = "Username or email", example = "Jack@example.com")
+        @Schema(description = "Username or email", example = "demo@ecom.local")
         @NotBlank String username,
-        @Schema(description = "Account password", example = "123456")
+        @Schema(description = "Account password", example = "Demo123!")
         @NotBlank String password) {
 }

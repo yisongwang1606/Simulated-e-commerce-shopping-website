@@ -367,7 +367,7 @@ export function AdminPage() {
 
   function renderProductSection() {
     return (
-      <div className="surface stack-lg">
+      <div className="surface stack-lg" id="catalog-intake">
         <SectionHeading
           description="Create products against the enterprise payload, including SKU, merchandising flags, and operational thresholds."
           eyebrow="Product intake"
@@ -1110,7 +1110,7 @@ export function AdminPage() {
       {errorMessage ? <div className="message error">{errorMessage}</div> : null}
 
       {dashboardSummary ? (
-        <section className="surface stack-lg">
+        <section className="surface stack-lg" id="overview">
           <SectionHeading
             description="The dashboard keeps current business pressure, service queue health, and stock exposure visible before you touch filters or forms."
             eyebrow="Operations overview"
@@ -1275,7 +1275,7 @@ export function AdminPage() {
         </section>
       ) : null}
 
-      <section className="surface stack-lg">
+      <section className="surface stack-lg" id="workbench">
         <SectionHeading
           description="Use the workbench for day-to-day execution: search orders, review refunds, keep the support queue moving, and update the sellable catalog."
           eyebrow="Operations workbench"
