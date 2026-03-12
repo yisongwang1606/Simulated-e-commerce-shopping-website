@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { createProduct, getAdminOrders } from '../api/admin'
 import { getProducts } from '../api/products'
@@ -45,12 +45,8 @@ export function AdminPage() {
     }
   }
 
-  const loadAdminData = useEffectEvent(async () => {
-    await fetchAdminData()
-  })
-
   useEffect(() => {
-    void loadAdminData()
+    void fetchAdminData()
   }, [])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

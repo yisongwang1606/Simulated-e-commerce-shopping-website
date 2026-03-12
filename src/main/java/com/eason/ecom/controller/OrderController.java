@@ -2,7 +2,6 @@ package com.eason.ecom.controller;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -16,6 +15,7 @@ import com.eason.ecom.dto.ApiResponse;
 import com.eason.ecom.dto.OrderResponse;
 import com.eason.ecom.security.AuthenticatedUser;
 import com.eason.ecom.service.OrderService;
+import com.eason.ecom.support.ApiResponseFactory;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -46,8 +46,7 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Order created successfully", orderService.createOrder(authenticatedUser.getId())));
+        return ApiResponseFactory.created("Order created successfully", orderService.createOrder(authenticatedUser.getId()));
     }
 
     @Operation(
@@ -60,7 +59,7 @@ public class OrderController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getOrders(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
-        return ResponseEntity.ok(ApiResponse.success(orderService.getOrdersForUser(authenticatedUser.getId())));
+        return ApiResponseFactory.ok(orderService.getOrdersForUser(authenticatedUser.getId()));
     }
 
     @Operation(
@@ -76,6 +75,6 @@ public class OrderController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @Parameter(description = "Order identifier", example = "1")
             @PathVariable @Positive Long orderId) {
-        return ResponseEntity.ok(ApiResponse.success(orderService.getOrderForUser(authenticatedUser.getId(), orderId)));
+        return ApiResponseFactory.ok(orderService.getOrderForUser(authenticatedUser.getId(), orderId));
     }
 }

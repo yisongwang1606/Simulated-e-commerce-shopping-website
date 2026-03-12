@@ -162,7 +162,6 @@ button {
 .catalog-grid,
 .home-grid,
 .admin-grid,
-.order-grid,
 .product-grid,
 .metric-grid,
 .detail-grid,
@@ -185,8 +184,7 @@ button {
   align-items: start;
 }
 
-.product-grid,
-.order-grid {
+.product-grid {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
@@ -297,13 +295,8 @@ button {
   .admin-grid,
   .home-grid,
   .metric-grid,
-  .form-columns,
-  .cart-row {
+  .form-columns {
     grid-template-columns: 1fr;
-  }
-
-  .cart-row {
-    align-items: start;
   }
 }
 

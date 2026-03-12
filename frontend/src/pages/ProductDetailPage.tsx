@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { addCartItem } from '../api/cart'
@@ -23,30 +23,30 @@ export function ProductDetailPage() {
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
-  const loadProduct = useEffectEvent(async () => {
-    if (!Number.isFinite(numericProductId)) {
-      setErrorMessage('Invalid product identifier')
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setErrorMessage('')
-
-    try {
-      const data = await getProduct(numericProductId)
-      setProduct(data)
-      setQuantity(data.stock > 0 ? 1 : 0)
-    } catch (error) {
-      setErrorMessage(extractErrorMessage(error))
-    } finally {
-      setIsLoading(false)
-    }
-  })
-
   useEffect(() => {
+    const loadProduct = async () => {
+      if (!Number.isFinite(numericProductId)) {
+        setErrorMessage('Invalid product identifier')
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        const data = await getProduct(numericProductId)
+        setProduct(data)
+        setQuantity(data.stock > 0 ? 1 : 0)
+      } catch (error) {
+        setErrorMessage(extractErrorMessage(error))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     void loadProduct()
-  }, [])
+  }, [numericProductId])
 
   async function handleAddToCart() {
     if (!product) {

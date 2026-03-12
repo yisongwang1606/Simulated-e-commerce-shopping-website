@@ -24,6 +24,7 @@ import com.eason.ecom.dto.ProductResponse;
 import com.eason.ecom.entity.Product;
 import com.eason.ecom.exception.ResourceNotFoundException;
 import com.eason.ecom.repository.ProductRepository;
+import com.eason.ecom.support.RedisKeys;
 import jakarta.persistence.criteria.Predicate;
 import tools.jackson.databind.ObjectMapper;
 
@@ -34,16 +35,19 @@ public class ProductService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final AppProperties appProperties;
+    private final RedisKeys redisKeys;
 
     public ProductService(
             ProductRepository productRepository,
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            RedisKeys redisKeys) {
         this.productRepository = productRepository;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.appProperties = appProperties;
+        this.redisKeys = redisKeys;
     }
 
     @Transactional(readOnly = true)
@@ -65,7 +69,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public ProductResponse getProductById(Long productId) {
-        String cacheKey = getProductCacheKey(productId);
+        String cacheKey = redisKeys.product(productId);
         String cached = redisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.hasText(cached)) {
             try {
@@ -99,7 +103,7 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<PopularProductResponse> getPopularProducts(int limit) {
         Set<TypedTuple<String>> tuples = redisTemplate.opsForZSet()
-                .reverseRangeWithScores(appProperties.getRedis().getPopularKey(), 0, Math.max(0, limit - 1));
+                .reverseRangeWithScores(redisKeys.popularProducts(), 0, Math.max(0, limit - 1));
 
         if (tuples == null || tuples.isEmpty()) {
             return productRepository.findAll(PageRequest.of(0, limit, Sort.by("id").ascending()))
@@ -151,7 +155,7 @@ public class ProductService {
         Product product = findProductEntity(productId);
         productRepository.delete(product);
         evictProductCache(productId);
-        redisTemplate.opsForZSet().remove(appProperties.getRedis().getPopularKey(), String.valueOf(productId));
+        redisTemplate.opsForZSet().remove(redisKeys.popularProducts(), String.valueOf(productId));
     }
 
     public void evictProductCaches(Iterable<Long> productIds) {
@@ -201,17 +205,13 @@ public class ProductService {
     }
 
     private void evictProductCache(Long productId) {
-        redisTemplate.delete(getProductCacheKey(productId));
+        redisTemplate.delete(redisKeys.product(productId));
     }
 
     private void trackProductView(Long productId) {
         redisTemplate.opsForZSet().incrementScore(
-                appProperties.getRedis().getPopularKey(),
+                redisKeys.popularProducts(),
                 String.valueOf(productId),
                 1);
-    }
-
-    private String getProductCacheKey(Long productId) {
-        return appProperties.getRedis().getProductPrefix() + productId;
     }
 }

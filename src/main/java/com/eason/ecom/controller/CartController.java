@@ -18,6 +18,7 @@ import com.eason.ecom.dto.CartResponse;
 import com.eason.ecom.dto.UpdateCartItemRequest;
 import com.eason.ecom.security.AuthenticatedUser;
 import com.eason.ecom.service.CartService;
+import com.eason.ecom.support.ApiResponseFactory;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -47,7 +48,7 @@ public class CartController {
     @GetMapping
     public ResponseEntity<ApiResponse<CartResponse>> getCart(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
-        return ResponseEntity.ok(ApiResponse.success(cartService.getCart(authenticatedUser.getId())));
+        return ApiResponseFactory.ok(cartService.getCart(authenticatedUser.getId()));
     }
 
     @Operation(
@@ -63,7 +64,7 @@ public class CartController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestBody @Validated CartItemRequest request) {
         cartService.addItem(authenticatedUser.getId(), request.productId(), request.quantity());
-        return ResponseEntity.ok(ApiResponse.successMessage("Item added to cart"));
+        return ApiResponseFactory.okMessage("Item added to cart");
     }
 
     @Operation(
@@ -81,7 +82,7 @@ public class CartController {
             @PathVariable @Positive Long productId,
             @RequestBody @Validated UpdateCartItemRequest request) {
         cartService.updateItem(authenticatedUser.getId(), productId, request.quantity());
-        return ResponseEntity.ok(ApiResponse.successMessage("Cart item updated"));
+        return ApiResponseFactory.okMessage("Cart item updated");
     }
 
     @Operation(
@@ -97,6 +98,6 @@ public class CartController {
             @Parameter(description = "Product identifier", example = "5")
             @PathVariable @Positive Long productId) {
         cartService.removeItem(authenticatedUser.getId(), productId);
-        return ResponseEntity.ok(ApiResponse.successMessage("Cart item removed"));
+        return ApiResponseFactory.okMessage("Cart item removed");
     }
 }

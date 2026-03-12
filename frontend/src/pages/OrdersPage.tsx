@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { getOrders } from '../api/orders'
 import type { Order } from '../api/contracts'
@@ -14,21 +14,21 @@ export function OrdersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
-  const loadOrders = useEffectEvent(async () => {
-    setIsLoading(true)
-    setErrorMessage('')
-
-    try {
-      const data = await getOrders()
-      setOrders(data)
-    } catch (error) {
-      setErrorMessage(extractErrorMessage(error))
-    } finally {
-      setIsLoading(false)
-    }
-  })
-
   useEffect(() => {
+    const loadOrders = async () => {
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        const data = await getOrders()
+        setOrders(data)
+      } catch (error) {
+        setErrorMessage(extractErrorMessage(error))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     void loadOrders()
   }, [])
 

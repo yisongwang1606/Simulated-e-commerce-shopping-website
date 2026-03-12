@@ -17,21 +17,22 @@ import com.eason.ecom.dto.CartResponse;
 import com.eason.ecom.entity.Product;
 import com.eason.ecom.exception.BadRequestException;
 import com.eason.ecom.repository.ProductRepository;
+import com.eason.ecom.support.RedisKeys;
 
 @Service
 public class CartService {
 
     private final ProductRepository productRepository;
     private final StringRedisTemplate redisTemplate;
-    private final AppProperties appProperties;
+    private final RedisKeys redisKeys;
 
     public CartService(
             ProductRepository productRepository,
             StringRedisTemplate redisTemplate,
-            AppProperties appProperties) {
+            RedisKeys redisKeys) {
         this.productRepository = productRepository;
         this.redisTemplate = redisTemplate;
-        this.appProperties = appProperties;
+        this.redisKeys = redisKeys;
     }
 
     @Transactional(readOnly = true)
@@ -85,28 +86,29 @@ public class CartService {
     }
 
     public void removeItem(Long userId, Long productId) {
-        redisTemplate.opsForHash().delete(cartKey(userId), String.valueOf(productId));
+        redisTemplate.opsForHash().delete(redisKeys.cart(userId), String.valueOf(productId));
     }
 
     public void clearCart(Long userId) {
-        redisTemplate.delete(cartKey(userId));
+        redisTemplate.delete(redisKeys.cart(userId));
     }
 
     public Map<Long, Integer> getCartQuantities(Long userId) {
         HashOperations<String, Object, Object> hashOperations = redisTemplate.opsForHash();
-        Map<Object, Object> entries = hashOperations.entries(cartKey(userId));
+        String cartKey = redisKeys.cart(userId);
+        Map<Object, Object> entries = hashOperations.entries(cartKey);
         Map<Long, Integer> result = new LinkedHashMap<>();
         for (Map.Entry<Object, Object> entry : entries.entrySet()) {
             try {
                 long productId = Long.parseLong(entry.getKey().toString());
                 int quantity = Integer.parseInt(entry.getValue().toString());
                 if (quantity <= 0) {
-                    hashOperations.delete(cartKey(userId), entry.getKey());
+                    hashOperations.delete(cartKey, entry.getKey());
                     continue;
                 }
                 result.put(productId, quantity);
             } catch (NumberFormatException exception) {
-                hashOperations.delete(cartKey(userId), entry.getKey());
+                hashOperations.delete(cartKey, entry.getKey());
             }
         }
         return result;
@@ -127,10 +129,9 @@ public class CartService {
     }
 
     private void putQuantity(Long userId, Long productId, int quantity) {
-        redisTemplate.opsForHash().put(cartKey(userId), String.valueOf(productId), String.valueOf(quantity));
-    }
-
-    private String cartKey(Long userId) {
-        return appProperties.getRedis().getCartPrefix() + userId;
+        redisTemplate.opsForHash().put(
+                redisKeys.cart(userId),
+                String.valueOf(productId),
+                String.valueOf(quantity));
     }
 }

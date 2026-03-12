@@ -2,7 +2,6 @@ package com.eason.ecom.controller;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +19,7 @@ import com.eason.ecom.dto.ProductRequest;
 import com.eason.ecom.dto.ProductResponse;
 import com.eason.ecom.service.OrderService;
 import com.eason.ecom.service.ProductService;
+import com.eason.ecom.support.ApiResponseFactory;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,8 +53,7 @@ public class AdminController {
     @PostMapping("/products")
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
             @RequestBody @Validated ProductRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Product created successfully", productService.createProduct(request)));
+        return ApiResponseFactory.created("Product created successfully", productService.createProduct(request));
     }
 
     @Operation(
@@ -72,8 +71,7 @@ public class AdminController {
             @Parameter(description = "Product identifier", example = "1")
             @PathVariable @Positive Long productId,
             @RequestBody @Validated ProductRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Product updated successfully",
-                productService.updateProduct(productId, request)));
+        return ApiResponseFactory.ok("Product updated successfully", productService.updateProduct(productId, request));
     }
 
     @Operation(
@@ -90,7 +88,7 @@ public class AdminController {
             @Parameter(description = "Product identifier", example = "1")
             @PathVariable @Positive Long productId) {
         productService.deleteProduct(productId);
-        return ResponseEntity.ok(ApiResponse.successMessage("Product deleted successfully"));
+        return ApiResponseFactory.okMessage("Product deleted successfully");
     }
 
     @Operation(
@@ -103,7 +101,7 @@ public class AdminController {
     })
     @GetMapping("/orders")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getOrders() {
-        return ResponseEntity.ok(ApiResponse.success(orderService.getAllOrders()));
+        return ApiResponseFactory.ok(orderService.getAllOrders());
     }
 
     @Operation(
@@ -119,6 +117,6 @@ public class AdminController {
     public ResponseEntity<ApiResponse<OrderResponse>> getOrder(
             @Parameter(description = "Order identifier", example = "1")
             @PathVariable @Positive Long orderId) {
-        return ResponseEntity.ok(ApiResponse.success(orderService.getOrderForAdmin(orderId)));
+        return ApiResponseFactory.ok(orderService.getOrderForAdmin(orderId));
     }
 }

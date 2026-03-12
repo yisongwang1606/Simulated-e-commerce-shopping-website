@@ -15,6 +15,7 @@ import com.eason.ecom.dto.PagedResponse;
 import com.eason.ecom.dto.PopularProductResponse;
 import com.eason.ecom.dto.ProductResponse;
 import com.eason.ecom.service.ProductService;
+import com.eason.ecom.support.ApiResponseFactory;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,7 +54,7 @@ public class ProductController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @Parameter(description = "Page size between 1 and 50", example = "10")
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
-        return ResponseEntity.ok(ApiResponse.success(productService.getProducts(keyword, category, page, size)));
+        return ApiResponseFactory.ok(productService.getProducts(keyword, category, page, size));
     }
 
     @Operation(
@@ -64,7 +65,7 @@ public class ProductController {
     })
     @GetMapping("/categories")
     public ResponseEntity<ApiResponse<List<String>>> getCategories() {
-        return ResponseEntity.ok(ApiResponse.success(productService.getCategories()));
+        return ApiResponseFactory.ok(productService.getCategories());
     }
 
     @Operation(
@@ -78,7 +79,7 @@ public class ProductController {
     public ResponseEntity<ApiResponse<List<PopularProductResponse>>> getPopularProducts(
             @Parameter(description = "Maximum number of products to return", example = "10")
             @RequestParam(defaultValue = "10") @Min(1) @Max(20) int limit) {
-        return ResponseEntity.ok(ApiResponse.success(productService.getPopularProducts(limit)));
+        return ApiResponseFactory.ok(productService.getPopularProducts(limit));
     }
 
     @Operation(
@@ -92,6 +93,6 @@ public class ProductController {
     public ResponseEntity<ApiResponse<ProductResponse>> getProduct(
             @Parameter(description = "Product identifier", example = "1")
             @PathVariable @Positive Long productId) {
-        return ResponseEntity.ok(ApiResponse.success(productService.getProductById(productId)));
+        return ApiResponseFactory.ok(productService.getProductById(productId));
     }
 }

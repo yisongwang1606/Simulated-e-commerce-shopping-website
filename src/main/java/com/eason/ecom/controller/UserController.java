@@ -11,6 +11,7 @@ import com.eason.ecom.dto.ApiResponse;
 import com.eason.ecom.dto.UserProfileResponse;
 import com.eason.ecom.security.AuthenticatedUser;
 import com.eason.ecom.service.AuthService;
+import com.eason.ecom.support.ApiResponseFactory;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -38,6 +39,6 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getProfile(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
-        return ResponseEntity.ok(ApiResponse.success(authService.getUserProfile(authenticatedUser.getId())));
+        return ApiResponseFactory.ok(authService.getUserProfile(authenticatedUser.getId()));
     }
 }

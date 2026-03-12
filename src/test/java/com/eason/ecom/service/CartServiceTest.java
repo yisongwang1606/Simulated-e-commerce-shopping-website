@@ -25,6 +25,7 @@ import com.eason.ecom.config.AppProperties;
 import com.eason.ecom.entity.Product;
 import com.eason.ecom.exception.BadRequestException;
 import com.eason.ecom.repository.ProductRepository;
+import com.eason.ecom.support.RedisKeys;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
@@ -44,9 +45,10 @@ class CartServiceTest {
     void setUp() {
         AppProperties appProperties = new AppProperties();
         appProperties.getRedis().setCartPrefix("cart:user:");
+        RedisKeys redisKeys = new RedisKeys(appProperties);
 
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
-        cartService = new CartService(productRepository, redisTemplate, appProperties);
+        cartService = new CartService(productRepository, redisTemplate, redisKeys);
     }
 
     @Test

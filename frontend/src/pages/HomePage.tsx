@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { getCategories, getPopularProducts } from '../api/products'
@@ -15,26 +15,26 @@ export function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
-  const loadHome = useEffectEvent(async () => {
-    setIsLoading(true)
-    setErrorMessage('')
-
-    try {
-      const [popular, categoryList] = await Promise.all([
-        getPopularProducts(6),
-        getCategories(),
-      ])
-
-      setPopularProducts(popular)
-      setCategories(categoryList)
-    } catch (error) {
-      setErrorMessage(extractErrorMessage(error))
-    } finally {
-      setIsLoading(false)
-    }
-  })
-
   useEffect(() => {
+    const loadHome = async () => {
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        const [popular, categoryList] = await Promise.all([
+          getPopularProducts(6),
+          getCategories(),
+        ])
+
+        setPopularProducts(popular)
+        setCategories(categoryList)
+      } catch (error) {
+        setErrorMessage(extractErrorMessage(error))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     void loadHome()
   }, [])
 

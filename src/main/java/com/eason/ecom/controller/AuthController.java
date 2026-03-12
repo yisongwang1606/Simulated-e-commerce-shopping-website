@@ -1,6 +1,5 @@
 package com.eason.ecom.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +14,7 @@ import com.eason.ecom.dto.LoginRequest;
 import com.eason.ecom.dto.RegisterRequest;
 import com.eason.ecom.dto.UserProfileResponse;
 import com.eason.ecom.service.AuthService;
+import com.eason.ecom.support.ApiResponseFactory;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -45,8 +45,7 @@ public class AuthController {
     })
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<UserProfileResponse>> register(@RequestBody @Validated RegisterRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("User registered successfully", authService.register(request)));
+        return ApiResponseFactory.created("User registered successfully", authService.register(request));
     }
 
     @Operation(
@@ -59,7 +58,7 @@ public class AuthController {
     })
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody @Validated LoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Login successful", authService.login(request)));
+        return ApiResponseFactory.ok("Login successful", authService.login(request));
     }
 
     @Operation(
@@ -74,6 +73,6 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
         authService.logout(authorizationHeader);
-        return ResponseEntity.ok(ApiResponse.successMessage("Logout successful"));
+        return ApiResponseFactory.okMessage("Logout successful");
     }
 }

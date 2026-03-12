@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { getCart, removeCartItem, updateCartItem } from '../api/cart'
@@ -38,12 +38,8 @@ export function CartPage() {
     }
   }
 
-  const loadCart = useEffectEvent(async () => {
-    await fetchCartData()
-  })
-
   useEffect(() => {
-    void loadCart()
+    void fetchCartData()
   }, [])
 
   async function handleUpdate(productId: number) {

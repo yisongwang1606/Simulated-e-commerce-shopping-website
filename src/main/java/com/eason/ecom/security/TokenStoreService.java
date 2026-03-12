@@ -5,32 +5,28 @@ import java.time.Duration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.eason.ecom.config.AppProperties;
+import com.eason.ecom.support.RedisKeys;
 
 @Service
 public class TokenStoreService {
 
     private final StringRedisTemplate redisTemplate;
-    private final AppProperties appProperties;
+    private final RedisKeys redisKeys;
 
-    public TokenStoreService(StringRedisTemplate redisTemplate, AppProperties appProperties) {
+    public TokenStoreService(StringRedisTemplate redisTemplate, RedisKeys redisKeys) {
         this.redisTemplate = redisTemplate;
-        this.appProperties = appProperties;
+        this.redisKeys = redisKeys;
     }
 
     public void store(String token, Duration ttl) {
-        redisTemplate.opsForValue().set(tokenKey(token), "1", ttl);
+        redisTemplate.opsForValue().set(redisKeys.token(token), "1", ttl);
     }
 
     public boolean isActive(String token) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(tokenKey(token)));
+        return Boolean.TRUE.equals(redisTemplate.hasKey(redisKeys.token(token)));
     }
 
     public void revoke(String token) {
-        redisTemplate.delete(tokenKey(token));
-    }
-
-    private String tokenKey(String token) {
-        return appProperties.getRedis().getTokenPrefix() + token;
+        redisTemplate.delete(redisKeys.token(token));
     }
 }
