@@ -18,7 +18,11 @@ export function CustomerShell() {
       logoutRedirect="/"
       navItems={customerNavItems}
       pageClassName="customer-shell"
-      portalLabel="Customer storefront"
+      statusItems={[
+        'Customer storefront',
+        'Live catalog and checkout',
+        'Delivery and after-sales support',
+      ]}
       subtitle="Browse the catalog, manage the cart, place orders, and track after-sales requests."
       title="Northline Commerce Storefront"
     />

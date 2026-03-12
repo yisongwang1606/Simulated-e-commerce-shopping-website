@@ -17,7 +17,11 @@ export function AdminShell() {
       logoutRedirect="/admin/login"
       navItems={adminNavItems}
       pageClassName="admin-shell"
-      portalLabel="Admin operations"
+      statusItems={[
+        'Admin operations',
+        '{api}',
+        'Java 21 | MySQL 8.4 | Redis 7.4',
+      ]}
       showSwagger
       subtitle="Run the operations desk for orders, support, refunds, and merchandising without storefront actions mixed in."
       switchLink={{ label: 'Storefront', to: '/' }}

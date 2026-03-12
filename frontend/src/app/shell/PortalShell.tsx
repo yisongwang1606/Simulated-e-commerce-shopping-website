@@ -25,7 +25,7 @@ interface PortalShellProps {
   title: string
   subtitle: string
   navItems: PortalNavItem[]
-  portalLabel: string
+  statusItems: string[]
   guestLabel: string
   loginPath: string
   logoutRedirect: string
@@ -45,7 +45,7 @@ export function PortalShell({
   title,
   subtitle,
   navItems,
-  portalLabel,
+  statusItems,
   guestLabel,
   loginPath,
   logoutRedirect,
@@ -61,7 +61,9 @@ export function PortalShell({
   const user = useSessionStore((state) => state.user)
   const clearSession = useSessionStore((state) => state.clearSession)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const apiLabel = apiBaseUrl || 'same-origin proxy'
+  const resolvedStatusItems = statusItems.map((item) =>
+    item === '{api}' ? `API ${apiBaseUrl || 'same-origin proxy'}` : item,
+  )
 
   async function handleLogout() {
     setIsLoggingOut(true)
@@ -96,9 +98,11 @@ export function PortalShell({
             </div>
 
             <div className="topbar-status">
-              <span className="signal">{portalLabel}</span>
-              <span className="signal">API {apiLabel}</span>
-              <span className="signal">Java 21 | MySQL 8.4 | Redis 7.4</span>
+              {resolvedStatusItems.map((item) => (
+                <span className="signal" key={item}>
+                  {item}
+                </span>
+              ))}
               {user ? (
                 <span className={`status-pill ${user.role.toLowerCase()}`}>
                   {user.username} | {user.role}
