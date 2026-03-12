@@ -10,7 +10,7 @@ export function SectionHeading({
   description,
 }: SectionHeadingProps) {
   return (
-    <div className="stack">
+    <div className="section-heading">
       <p className="eyebrow">{eyebrow}</p>
       <h2 className="section-title">{title}</h2>
       <p className="section-copy">{description}</p>

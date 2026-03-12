@@ -3,6 +3,7 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
 } from 'react'
 
@@ -21,8 +22,12 @@ export function CatalogPage() {
   const [category, setCategory] = useState('')
   const [page, setPage] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const pendingScrollY = useRef<number | null>(null)
   const deferredKeyword = useDeferredValue(keyword)
+  const totalPages = Math.max(products?.totalPages ?? 1, 1)
+  const pageItems = buildPageItems(page, totalPages)
 
   const loadCategories = useEffectEvent(async () => {
     try {
@@ -34,7 +39,12 @@ export function CatalogPage() {
   })
 
   const loadProducts = useEffectEvent(async () => {
-    setIsLoading(true)
+    const hasRenderedProducts = products !== null
+    if (hasRenderedProducts) {
+      setIsRefreshing(true)
+    } else {
+      setIsLoading(true)
+    }
     setErrorMessage('')
 
     try {
@@ -50,8 +60,14 @@ export function CatalogPage() {
       setErrorMessage(extractErrorMessage(error))
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
   })
+
+  const queuePageChange = (nextPage: number) => {
+    pendingScrollY.current = window.scrollY
+    startTransition(() => setPage(nextPage))
+  }
 
   useEffect(() => {
     void loadCategories()
@@ -60,6 +76,16 @@ export function CatalogPage() {
   useEffect(() => {
     void loadProducts()
   }, [category, deferredKeyword, page])
+
+  useEffect(() => {
+    if (isRefreshing || pendingScrollY.current === null) {
+      return
+    }
+
+    const nextScrollY = pendingScrollY.current
+    pendingScrollY.current = null
+    window.scrollTo({ top: nextScrollY, behavior: 'auto' })
+  }, [isRefreshing, products])
 
   return (
     <div className="stack-lg">
@@ -89,6 +115,11 @@ export function CatalogPage() {
           <span className="signal">
             {products?.totalElements ?? 0} items available
           </span>
+          {isRefreshing ? (
+            <span aria-live="polite" className="signal">
+              Refreshing page...
+            </span>
+          ) : null}
         </div>
 
         <div className="catalog-grid">
@@ -141,22 +172,57 @@ export function CatalogPage() {
                 <div className="pagination">
                   <button
                     className="button-outline"
-                    disabled={page === 0}
+                    disabled={page === 0 || isRefreshing}
                     onClick={() => {
-                      startTransition(() => setPage((currentPage) => currentPage - 1))
+                      queuePageChange(page - 1)
                     }}
                     type="button"
                   >
                     Previous
                   </button>
-                  <span className="signal">
-                    Page {products.page + 1} of {Math.max(products.totalPages, 1)}
-                  </span>
+                  <div className="page-picker">
+                    {pageItems.map((item, index) =>
+                      item === 'ellipsis' ? (
+                        <span className="page-gap" key={`ellipsis-${index}`}>
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          className={item === page ? 'page-number active' : 'page-number'}
+                          disabled={isRefreshing}
+                          key={item}
+                          onClick={() => {
+                            queuePageChange(item)
+                          }}
+                          type="button"
+                        >
+                          {item + 1}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <div className="page-jump">
+                    <label htmlFor="catalog-page-jump">Jump to</label>
+                    <select
+                      disabled={isRefreshing}
+                      id="catalog-page-jump"
+                      onChange={(event) => {
+                        queuePageChange(Number(event.target.value))
+                      }}
+                      value={page}
+                    >
+                      {Array.from({ length: totalPages }, (_, index) => (
+                        <option key={index} value={index}>
+                          Page {index + 1}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <button
                     className="button-outline"
-                    disabled={page + 1 >= products.totalPages}
+                    disabled={page + 1 >= totalPages || isRefreshing}
                     onClick={() => {
-                      startTransition(() => setPage((currentPage) => currentPage + 1))
+                      queuePageChange(page + 1)
                     }}
                     type="button"
                   >
@@ -175,4 +241,32 @@ export function CatalogPage() {
       </section>
     </div>
   )
+}
+
+function buildPageItems(
+  currentPage: number,
+  totalPages: number,
+): Array<number | 'ellipsis'> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index)
+  }
+
+  const pages = new Set<number>([0, totalPages - 1, currentPage])
+  pages.add(Math.max(currentPage - 1, 0))
+  pages.add(Math.min(currentPage + 1, totalPages - 1))
+
+  const orderedPages = [...pages].sort((left, right) => left - right)
+  const items: Array<number | 'ellipsis'> = []
+
+  orderedPages.forEach((pageNumber, index) => {
+    const previous = orderedPages[index - 1]
+
+    if (index > 0 && previous !== undefined && pageNumber - previous > 1) {
+      items.push('ellipsis')
+    }
+
+    items.push(pageNumber)
+  })
+
+  return items
 }

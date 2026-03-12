@@ -112,12 +112,12 @@ export function CartPage() {
         {isLoading ? (
           <LoadingState title="Loading the Redis cart..." />
         ) : cart && cart.items.length > 0 ? (
-          <div className="catalog-grid">
+          <div className="cart-layout">
             <div className="stack-lg">
               {cart.items.map((item) => (
                 <article className="cart-item" key={item.productId}>
-                  <div className="cart-row">
-                    <div className="stack">
+                  <div className="cart-item-main">
+                    <div className="cart-copy">
                       <h3 className="card-title">{item.name}</h3>
                       <div className="item-meta">
                         <span className="pill">{item.category}</span>
@@ -125,24 +125,26 @@ export function CartPage() {
                       </div>
                     </div>
 
-                    <div className="field">
-                      <label htmlFor={`qty-${item.productId}`}>Qty</label>
-                      <input
-                        id={`qty-${item.productId}`}
-                        min={1}
-                        onChange={(event) =>
-                          setDraftQuantities((current) => ({
-                            ...current,
-                            [item.productId]: Number(event.target.value),
-                          }))
-                        }
-                        type="number"
-                        value={draftQuantities[item.productId] ?? item.quantity}
-                      />
-                    </div>
-
-                    <div className="stack">
-                      <strong className="price">{formatCurrency(item.subtotal)}</strong>
+                    <div className="cart-side">
+                      <div className="field cart-qty-field">
+                        <label htmlFor={`qty-${item.productId}`}>Qty</label>
+                        <input
+                          id={`qty-${item.productId}`}
+                          min={1}
+                          onChange={(event) =>
+                            setDraftQuantities((current) => ({
+                              ...current,
+                              [item.productId]: Number(event.target.value),
+                            }))
+                          }
+                          type="number"
+                          value={draftQuantities[item.productId] ?? item.quantity}
+                        />
+                      </div>
+                      <div className="cart-price-block">
+                        <span className="eyebrow">Subtotal</span>
+                        <strong className="price">{formatCurrency(item.subtotal)}</strong>
+                      </div>
                       <div className="stack-row">
                         <button
                           className="button-outline"
@@ -167,7 +169,8 @@ export function CartPage() {
               ))}
             </div>
 
-            <aside className="detail-panel cart-summary">
+            <aside className="detail-panel cart-summary cart-summary-sticky">
+              <p className="eyebrow">Order summary</p>
               <div className="summary-row">
                 <span>Total items</span>
                 <strong>{cart.totalQuantity}</strong>
@@ -187,6 +190,10 @@ export function CartPage() {
               <Link className="button-outline" to="/catalog">
                 Back to catalog
               </Link>
+              <p className="supporting-copy">
+                Quantities update immediately against Redis and checkout calls
+                the order API.
+              </p>
             </aside>
           </div>
         ) : (

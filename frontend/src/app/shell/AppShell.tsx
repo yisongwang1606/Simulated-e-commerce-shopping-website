@@ -35,7 +35,7 @@ export function AppShell() {
           <div className="brand-row">
             <div className="brand-mark">
               <span className="brand-badge">EC</span>
-              <div className="stack">
+              <div className="brand-copy">
                 <span className="brand-title">Simulated Commerce Control Room</span>
                 <span className="brand-subtitle">
                   React 19 storefront shell for your Spring Boot 4 backend
@@ -43,11 +43,11 @@ export function AppShell() {
               </div>
             </div>
 
-            <div className="stack-row">
+            <div className="topbar-status">
               <span className="signal">API {apiBaseUrl}</span>
               {user ? (
                 <span className={`status-pill ${user.role.toLowerCase()}`}>
-                  {user.username} · {user.role}
+                  {user.username} | {user.role}
                 </span>
               ) : (
                 <span className="status-pill customer">Guest mode</span>
@@ -56,42 +56,44 @@ export function AppShell() {
           </div>
 
           <div className="nav-row">
-            <NavLink
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-              to="/"
-            >
-              Home
-            </NavLink>
-            <NavLink
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-              to="/catalog"
-            >
-              Catalog
-            </NavLink>
-            <NavLink
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-              to="/cart"
-            >
-              Cart
-            </NavLink>
-            <NavLink
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-              to="/orders"
-            >
-              Orders
-            </NavLink>
-            {isAdmin(user) ? (
+            <div className="nav-links">
               <NavLink
-                className={({ isActive }) =>
-                  isActive ? 'nav-link active' : 'nav-link'
-                }
-                to="/admin"
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                to="/"
               >
-                Admin
+                Home
               </NavLink>
-            ) : null}
+              <NavLink
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                to="/catalog"
+              >
+                Catalog
+              </NavLink>
+              <NavLink
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                to="/cart"
+              >
+                Cart
+              </NavLink>
+              <NavLink
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                to="/orders"
+              >
+                Orders
+              </NavLink>
+              {isAdmin(user) ? (
+                <NavLink
+                  className={({ isActive }) =>
+                    isActive ? 'nav-link active' : 'nav-link'
+                  }
+                  to="/admin"
+                >
+                  Admin
+                </NavLink>
+              ) : null}
+            </div>
 
-            <div className="stack-row" style={{ marginLeft: 'auto' }}>
+            <div className="nav-actions">
               <a
                 className="ghost-link"
                 href="http://127.0.0.1:8080/swagger-ui.html"
@@ -130,7 +132,7 @@ export function AppShell() {
             Built for the current Java 21 + MySQL 8.4 + Redis stack in this
             workspace.
           </p>
-          <p className="footer-copy">React 19 · Vite 7 · TypeScript 5.9</p>
+          <p className="footer-copy">React 19 | Vite 7 | TypeScript 5.9</p>
         </div>
       </footer>
     </div>

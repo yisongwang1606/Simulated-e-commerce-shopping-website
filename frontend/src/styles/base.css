@@ -128,7 +128,10 @@ button {
 .order-meta,
 .item-meta,
 .chip-row,
-.pagination {
+.pagination,
+.nav-links,
+.nav-actions,
+.topbar-status {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -226,6 +229,8 @@ button {
   margin: 0;
   font-family: 'Fraunces', Georgia, serif;
   letter-spacing: -0.04em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 .hero-title {
@@ -252,6 +257,12 @@ button {
 .hero-copy {
   max-width: 62ch;
   color: var(--muted);
+}
+
+.brand-copy,
+.section-heading,
+.hero-copy-block {
+  min-width: 0;
 }
 
 .price,
@@ -309,5 +320,9 @@ button {
 
   .brand-row {
     align-items: start;
+  }
+
+  .nav-row {
+    align-items: stretch;
   }
 }

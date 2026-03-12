@@ -46,28 +46,33 @@ export function OrdersPage() {
         {isLoading ? (
           <LoadingState title="Loading your orders..." />
         ) : orders.length > 0 ? (
-          <div className="order-grid">
+          <div className="order-list">
             {orders.map((order) => (
               <article className="order-card" key={order.id}>
-                <div className="summary-row">
+                <div className="order-summary-panel">
                   <div className="stack">
-                    <p className="eyebrow">Order #{order.id}</p>
-                    <h3 className="card-title">{formatCurrency(order.totalPrice)}</h3>
+                    <div className="order-summary-header">
+                      <p className="eyebrow">Order #{order.id}</p>
+                      <StatusPill value={order.status} />
+                    </div>
+
+                    <div className="stack">
+                      <h3 className="card-title">{formatCurrency(order.totalPrice)}</h3>
+                      <div className="order-meta-line">
+                        <span className="signal">Placed {formatDate(order.createdAt)}</span>
+                        <span className="signal">{order.items.length} items</span>
+                      </div>
+                    </div>
                   </div>
-                  <StatusPill value={order.status} />
                 </div>
 
-                <div className="order-meta">
-                  <span>Placed {formatDate(order.createdAt)}</span>
-                  <span>{order.items.length} line items</span>
-                </div>
-
-                <div className="stack">
+                <div className="order-detail-panel">
                   {order.items.map((item) => (
-                    <div className="summary-row" key={`${order.id}-${item.productId}`}>
-                      <span>
-                        {item.productName} × {item.quantity}
-                      </span>
+                    <div className="order-item-row" key={`${order.id}-${item.productId}`}>
+                      <div className="order-item-copy">
+                        <span className="order-item-name">{item.productName}</span>
+                        <span className="supporting-copy">Quantity {item.quantity}</span>
+                      </div>
                       <strong>{formatCurrency(item.subtotal)}</strong>
                     </div>
                   ))}

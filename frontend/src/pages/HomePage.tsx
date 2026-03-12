@@ -47,7 +47,7 @@ export function HomePage() {
       <section className="hero">
         <div className="hero-grid">
           <div className="stack-lg">
-            <div className="stack">
+            <div className="hero-copy-block">
               <p className="eyebrow">React storefront shell</p>
               <h1 className="hero-title">
                 A frontend control layer ready for products, carts, orders, and
