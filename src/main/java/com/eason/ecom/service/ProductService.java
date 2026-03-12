@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +23,8 @@ import com.eason.ecom.dto.PopularProductResponse;
 import com.eason.ecom.dto.ProductRequest;
 import com.eason.ecom.dto.ProductResponse;
 import com.eason.ecom.entity.Product;
+import com.eason.ecom.entity.ProductStatus;
+import com.eason.ecom.entity.TaxClass;
 import com.eason.ecom.exception.ResourceNotFoundException;
 import com.eason.ecom.repository.ProductRepository;
 import com.eason.ecom.support.RedisKeys;
@@ -81,7 +84,7 @@ public class ProductService {
             }
         }
 
-        Product product = findProductEntity(productId);
+        Product product = findActiveProductEntity(productId);
         ProductResponse response = toResponse(product);
         try {
             redisTemplate.opsForValue().set(
@@ -170,6 +173,7 @@ public class ProductService {
     private Specification<Product> buildSpecification(String keyword, String category) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.equal(root.get("status"), ProductStatus.ACTIVE));
             if (StringUtils.hasText(keyword)) {
                 String likeValue = "%" + keyword.trim().toLowerCase() + "%";
                 predicates.add(criteriaBuilder.or(
@@ -186,20 +190,37 @@ public class ProductService {
     }
 
     private void applyProductRequest(Product product, ProductRequest request) {
+        product.setSku(resolveSku(request.sku(), product.getSku()));
         product.setName(request.name().trim());
+        product.setBrand(resolveBrand(request.brand()));
         product.setPrice(request.price());
+        product.setCostPrice(resolveCostPrice(request.costPrice(), request.price()));
         product.setStock(request.stock());
+        product.setSafetyStock(resolveSafetyStock(request.safetyStock(), request.stock()));
         product.setCategory(request.category().trim());
+        product.setStatus(resolveStatus(request.status()));
+        product.setTaxClass(resolveTaxClass(request.taxClass()));
+        product.setWeightKg(resolveWeight(request.weightKg()));
+        product.setLeadTimeDays(resolveLeadTimeDays(request.leadTimeDays()));
+        product.setFeatured(Boolean.TRUE.equals(request.featured()));
         product.setDescription(request.description().trim());
     }
 
     private ProductResponse toResponse(Product product) {
         return new ProductResponse(
                 product.getId(),
+                product.getSku(),
                 product.getName(),
+                product.getBrand(),
                 product.getPrice(),
                 product.getStock(),
+                product.getSafetyStock(),
                 product.getCategory(),
+                product.getStatus().name(),
+                product.getTaxClass().name(),
+                product.getWeightKg(),
+                product.getLeadTimeDays(),
+                Boolean.TRUE.equals(product.getFeatured()),
                 product.getDescription(),
                 product.getCreatedAt());
     }
@@ -213,5 +234,63 @@ public class ProductService {
                 redisKeys.popularProducts(),
                 String.valueOf(productId),
                 1);
+    }
+
+    private Product findActiveProductEntity(Long productId) {
+        Product product = findProductEntity(productId);
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new ResourceNotFoundException("Product not found");
+        }
+        return product;
+    }
+
+    private String resolveSku(String requestedSku, String existingSku) {
+        if (StringUtils.hasText(requestedSku)) {
+            return requestedSku.trim().toUpperCase();
+        }
+        if (StringUtils.hasText(existingSku)) {
+            return existingSku;
+        }
+        return "GEN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    private String resolveBrand(String requestedBrand) {
+        return StringUtils.hasText(requestedBrand) ? requestedBrand.trim() : "House Brand";
+    }
+
+    private java.math.BigDecimal resolveCostPrice(java.math.BigDecimal requestedCostPrice, java.math.BigDecimal salePrice) {
+        if (requestedCostPrice != null) {
+            return requestedCostPrice;
+        }
+        return salePrice.multiply(java.math.BigDecimal.valueOf(0.6)).setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    private int resolveSafetyStock(Integer requestedSafetyStock, Integer stock) {
+        if (requestedSafetyStock != null) {
+            return requestedSafetyStock;
+        }
+        return Math.max(1, Math.min(stock, 5));
+    }
+
+    private ProductStatus resolveStatus(String requestedStatus) {
+        if (!StringUtils.hasText(requestedStatus)) {
+            return ProductStatus.ACTIVE;
+        }
+        return ProductStatus.valueOf(requestedStatus.trim().toUpperCase());
+    }
+
+    private TaxClass resolveTaxClass(String requestedTaxClass) {
+        if (!StringUtils.hasText(requestedTaxClass)) {
+            return TaxClass.STANDARD;
+        }
+        return TaxClass.valueOf(requestedTaxClass.trim().toUpperCase());
+    }
+
+    private java.math.BigDecimal resolveWeight(java.math.BigDecimal requestedWeight) {
+        return requestedWeight == null ? java.math.BigDecimal.valueOf(0.1) : requestedWeight;
+    }
+
+    private int resolveLeadTimeDays(Integer requestedLeadTimeDays) {
+        return requestedLeadTimeDays == null ? 3 : requestedLeadTimeDays;
     }
 }

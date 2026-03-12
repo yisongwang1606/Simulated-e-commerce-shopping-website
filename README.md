@@ -1,27 +1,32 @@
-# Simulated E-commerce Shopping Website
+# Enterprise Commerce Platform
 
-A full-stack training project that simulates the core workflow of an online shopping platform.
-
-The backend is implemented with Spring Boot and currently covers authentication, product browsing, Redis-backed cart management, order creation, admin product management, and Swagger/OpenAPI documentation.
+An enterprise-style e-commerce training project built on the current Spring Boot + React codebase.  
+It started as a simulated storefront, and is now evolving into a realistic single-repo commerce platform with order lifecycle control, inventory traceability, payment and shipment integration points, customer address book support, refund workflow, and admin audit visibility.
 
 ## Current Status
 
-- Backend is implemented and verified locally.
-- Swagger UI is enabled.
-- A React + Vite frontend scaffold exists in [`frontend/`](./frontend), but the production UI has not been built yet.
+- Backend enterprise baseline is implemented and verified locally.
+- Swagger / OpenAPI is enabled.
+- Flyway database migrations are enabled and currently validated through `V5`.
+- The React frontend workspace exists in [`frontend/`](./frontend) and builds successfully, but the newest enterprise APIs are not fully wired into the UI yet.
 
-## Features
+## Core Capabilities
 
-- User registration and login with JWT authentication
-- View current user profile
-- Product listing with pagination, keyword search, category filtering, and detail view
-- Redis product caching
-- Redis shopping cart storage using Hash
-- Redis popular product ranking using Sorted Set
-- Create orders from the current cart
-- View order history and order details
-- Admin product create, update, delete
-- Admin order listing and detail view
+- JWT authentication and role-based authorization
+- Customer registration, login, logout, and profile lookup
+- Product catalog with pagination, keyword search, category filtering, detail caching, and popularity ranking
+- Redis-backed cart
+- Order creation from cart with order number generation
+- Admin order status transitions with workflow validation
+- Inventory adjustment records and order-linked stock movement audit
+- Audit log query for operational investigation
+- Simulated payment initiation and payment callback processing
+- Shipment creation, delivery confirmation, and order completion flow
+- Customer address book with default address handling
+- Order shipping address snapshot at checkout time
+- Admin-only internal notes on orders
+- Customer refund request flow and admin refund review
+- Swagger-documented admin endpoints for catalog, orders, inventory, payments, shipments, refunds, and audit logs
 
 ## Tech Stack
 
@@ -29,36 +34,33 @@ The backend is implemented with Spring Boot and currently covers authentication,
 - Spring Boot 4.0.3
 - Spring Security
 - Spring Data JPA
-- MySQL
-- Redis-compatible cache server
-- springdoc OpenAPI / Swagger UI
-- React + Vite (frontend scaffold)
-
-## Prerequisites
-
-- Java 21
-- MySQL 8.0+  
-  Tested locally with MySQL 8.4
-- Redis 7 compatible server  
+- Flyway
+- MySQL 8.4
+- Redis-compatible server  
   Tested locally with Memurai on port `6379`
-- Node.js 20.19+ or 22.12+ if you want to run the current Vite 7 frontend scaffold
+- springdoc OpenAPI / Swagger UI
+- React 19 + Vite 7 + TypeScript
 
-## Local Backend Configuration
+## Local Environment
 
-The backend reads its settings from [`src/main/resources/application.properties`](./src/main/resources/application.properties).
+Tested local defaults:
 
-Current local defaults:
+- Backend: `http://127.0.0.1:8080`
+- MySQL: `127.0.0.1:3306`
+- Database: `ecom_enterprise`
+- Redis: `127.0.0.1:6379`
 
-- Server: `http://127.0.0.1:8080`
-- MySQL:
-  - Host: `127.0.0.1`
-  - Port: `3306`
-  - Database: `ecom`
-- Redis:
-  - Host: `127.0.0.1`
-  - Port: `6379`
+Key config files:
 
-The database will be created automatically if it does not exist.
+- [`src/main/resources/application.properties`](./src/main/resources/application.properties)
+- [`src/main/resources/application-dev.properties`](./src/main/resources/application-dev.properties)
+
+Important local defaults:
+
+- MySQL user: `root`
+- MySQL password: `ok`
+- Redis password: `ok`
+- Payment callback token: `local-payment-callback-token`
 
 ## Run The Backend
 
@@ -68,7 +70,7 @@ Start MySQL and Redis first, then run:
 .\mvnw.cmd spring-boot:run
 ```
 
-Build the jar:
+Build:
 
 ```powershell
 .\mvnw.cmd clean package
@@ -80,16 +82,29 @@ Run the packaged jar:
 java -jar target\ecom-0.0.1-SNAPSHOT.jar
 ```
 
-## Swagger UI
+## Run The Frontend
 
-After the backend starts, open:
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend build verification:
+
+```powershell
+cd frontend
+npm run build
+```
+
+## Swagger
+
+After the backend starts:
 
 - Swagger UI: `http://127.0.0.1:8080/swagger-ui.html`
 - OpenAPI JSON: `http://127.0.0.1:8080/v3/api-docs`
 
-Protected endpoints use Bearer token authentication.
-
-In Swagger UI:
+For protected endpoints:
 
 1. Call `POST /api/auth/login`
 2. Copy the returned token
@@ -104,11 +119,11 @@ Bearer <your-jwt-token>
 
 On a fresh database, the application seeds:
 
-- 100 sample products
+- 100 product master records
 - 1 admin account
 - 1 customer account
 
-Fresh database default users:
+Default demo accounts:
 
 - Admin
   - Username: `admin`
@@ -119,8 +134,6 @@ Fresh database default users:
   - Email: `demo@ecom.local`
   - Password: `Demo123!`
 
-Note: if your local database already contains users, those records are not overwritten automatically.
-
 ## API Overview
 
 Authentication:
@@ -129,29 +142,38 @@ Authentication:
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 
-User:
+User and Address Book:
 
 - `GET /api/users/me`
+- `GET /api/addresses`
+- `POST /api/addresses`
+- `PUT /api/addresses/{addressId}`
+- `PUT /api/addresses/{addressId}/default`
+- `DELETE /api/addresses/{addressId}`
 
-Products:
+Catalog and Cart:
 
 - `GET /api/products`
 - `GET /api/products/{productId}`
 - `GET /api/products/categories`
 - `GET /api/products/popular`
-
-Cart:
-
 - `GET /api/cart`
 - `POST /api/cart/items`
 - `PUT /api/cart/items/{productId}`
 - `DELETE /api/cart/items/{productId}`
 
-Orders:
+Orders and Customer Order Services:
 
 - `POST /api/orders`
 - `GET /api/orders`
 - `GET /api/orders/{orderId}`
+- `GET /api/orders/{orderId}/shipments`
+- `POST /api/orders/{orderId}/refund-requests`
+- `GET /api/orders/{orderId}/refund-requests`
+
+Payments:
+
+- `POST /api/payments/callback`
 
 Admin:
 
@@ -159,56 +181,96 @@ Admin:
 - `PUT /api/admin/products/{productId}`
 - `DELETE /api/admin/products/{productId}`
 - `GET /api/admin/orders`
+- `GET /api/admin/orders/search`
 - `GET /api/admin/orders/{orderId}`
+- `PUT /api/admin/orders/{orderId}/status`
+- `POST /api/admin/orders/{orderId}/payments`
+- `GET /api/admin/orders/{orderId}/payments`
+- `POST /api/admin/orders/{orderId}/shipments`
+- `GET /api/admin/orders/{orderId}/shipments`
+- `PUT /api/admin/shipments/{shipmentId}/deliver`
+- `POST /api/admin/orders/{orderId}/notes`
+- `GET /api/admin/orders/{orderId}/notes`
+- `POST /api/admin/products/{productId}/inventory-adjustments`
+- `GET /api/admin/products/{productId}/inventory-adjustments`
+- `GET /api/admin/refund-requests`
+- `PUT /api/admin/refund-requests/{refundRequestId}/review`
+- `GET /api/admin/audit-logs`
 
-## Order Flow
+## Enterprise Workflow Coverage
 
-`POST /api/orders` does not accept a custom order body.
+Implemented and verified:
 
-The current flow is:
+- Order lifecycle:
+  - `CREATED -> PAYMENT_PENDING -> PAID -> ALLOCATED -> SHIPPED -> COMPLETED`
+  - `SHIPPED/COMPLETED -> REFUND_PENDING -> REFUNDED`
+  - cancellation and inventory release rules
+- Inventory:
+  - manual adjustments
+  - order reservation and release tracking
+  - product cache eviction after stock-impacting changes
+- Payment:
+  - placeholder payment transactions
+  - callback token validation
+  - idempotent repeated callback handling
+- Shipment:
+  - shipment number generation
+  - tracking data capture
+  - delivered state transition
+- Refund:
+  - customer refund request
+  - admin review
+  - settlement mark on refund callback
+- Customer data:
+  - default address book
+  - explicit address selection during order creation
+  - shipping address snapshot stored on the order
+- Operations:
+  - internal order notes
+  - admin order search
+  - audit trail lookup
 
-1. Login
-2. Add items to the cart
-3. Call `POST /api/orders`
-4. The server reads the current cart, validates stock, creates the order, writes order items, decreases stock, and clears the cart
-
-## Project Structure
+## Repository Structure
 
 ```text
 ecom/
-├─ src/main/java/com/eason/ecom
-│  ├─ config
-│  ├─ controller
-│  ├─ dto
-│  ├─ entity
-│  ├─ exception
-│  ├─ repository
-│  ├─ security
-│  └─ service
-├─ src/main/resources
-├─ frontend/
-├─ pom.xml
-└─ README.md
+  src/main/java/com/eason/ecom
+  src/main/resources
+  src/test/java/com/eason/ecom
+  frontend/
+  pom.xml
+  README.md
 ```
 
 ## Verification
 
-The backend has been verified locally with:
+Latest backend verification:
 
 ```powershell
 .\mvnw.cmd clean test
 ```
 
-Verified flows:
+Latest verified results:
 
-- product listing
-- login
-- cart operations
-- order creation
-- admin product CRUD
-- Swagger/OpenAPI access
+- 27 backend tests passed
+- Flyway migrations applied through `V5`
+- Real end-to-end local verification covered:
+  - address selection at order creation
+  - admin order search
+  - payment initiation and callback
+  - shipment creation and delivery
+  - refund request, review, and refund settlement callback
+  - audit and inventory side effects
+
+Latest frontend verification:
+
+```powershell
+cd frontend
+npm run build
+```
 
 ## Notes
 
-- The backend uses Spring Boot 4, so some JSON classes come from the Spring Boot 4 dependency set rather than older Boot 3 conventions.
-- The frontend scaffold is present, but the final React application is still pending.
+- Payment, shipment, and refund integrations are still simulated integration points, not production third-party gateway connections.
+- This project is currently implemented as a modular monolith, which is intentional for this phase.
+- The newest enterprise APIs are available in Swagger, but the frontend still needs a dedicated integration pass for addresses, refund flows, and advanced admin search.

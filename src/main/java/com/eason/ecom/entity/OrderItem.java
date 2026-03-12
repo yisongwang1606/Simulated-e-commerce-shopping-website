@@ -28,11 +28,20 @@ public class OrderItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    @Column(name = "sku_snapshot", nullable = false, length = 32)
+    private String skuSnapshot;
+
+    @Column(name = "product_name_snapshot", nullable = false, length = 120)
+    private String productNameSnapshot;
+
     @Column(nullable = false)
     private Integer quantity;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
+    @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
+    private BigDecimal unitPrice;
+
+    @Column(name = "line_total", nullable = false, precision = 12, scale = 2)
+    private BigDecimal lineTotal;
 
     public Long getId() {
         return id;
@@ -58,6 +67,22 @@ public class OrderItem {
         this.product = product;
     }
 
+    public String getSkuSnapshot() {
+        return skuSnapshot;
+    }
+
+    public void setSkuSnapshot(String skuSnapshot) {
+        this.skuSnapshot = skuSnapshot;
+    }
+
+    public String getProductNameSnapshot() {
+        return productNameSnapshot;
+    }
+
+    public void setProductNameSnapshot(String productNameSnapshot) {
+        this.productNameSnapshot = productNameSnapshot;
+    }
+
     public Integer getQuantity() {
         return quantity;
     }
@@ -66,11 +91,19 @@ public class OrderItem {
         this.quantity = quantity;
     }
 
-    public BigDecimal getPrice() {
-        return price;
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
     }
 
-    public void setPrice(BigDecimal price) {
-        this.price = price;
+    public void setUnitPrice(BigDecimal unitPrice) {
+        this.unitPrice = unitPrice;
+    }
+
+    public BigDecimal getLineTotal() {
+        return lineTotal;
+    }
+
+    public void setLineTotal(BigDecimal lineTotal) {
+        this.lineTotal = lineTotal;
     }
 }

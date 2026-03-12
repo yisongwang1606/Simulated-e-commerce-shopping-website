@@ -10,6 +10,6 @@ import com.eason.ecom.entity.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
-    @Query("select distinct p.category from Product p order by p.category asc")
+    @Query("select distinct p.category from Product p where p.status = com.eason.ecom.entity.ProductStatus.ACTIVE order by p.category asc")
     List<String> findDistinctCategories();
 }

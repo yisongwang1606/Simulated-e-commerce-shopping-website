@@ -10,14 +10,29 @@ import org.springframework.stereotype.Component;
 public class AppProperties {
 
     private final Jwt jwt = new Jwt();
+    private final Order order = new Order();
+    private final Seed seed = new Seed();
     private final Redis redis = new Redis();
+    private final Integrations integrations = new Integrations();
 
     public Jwt getJwt() {
         return jwt;
     }
 
+    public Order getOrder() {
+        return order;
+    }
+
+    public Seed getSeed() {
+        return seed;
+    }
+
     public Redis getRedis() {
         return redis;
+    }
+
+    public Integrations getIntegrations() {
+        return integrations;
     }
 
     public static class Jwt {
@@ -86,6 +101,51 @@ public class AppProperties {
 
         public void setPopularKey(String popularKey) {
             this.popularKey = popularKey;
+        }
+    }
+
+    public static class Order {
+        private java.math.BigDecimal defaultTaxRate = java.math.BigDecimal.ZERO;
+        private java.math.BigDecimal defaultShippingFee = java.math.BigDecimal.ZERO;
+
+        public java.math.BigDecimal getDefaultTaxRate() {
+            return defaultTaxRate;
+        }
+
+        public void setDefaultTaxRate(java.math.BigDecimal defaultTaxRate) {
+            this.defaultTaxRate = defaultTaxRate;
+        }
+
+        public java.math.BigDecimal getDefaultShippingFee() {
+            return defaultShippingFee;
+        }
+
+        public void setDefaultShippingFee(java.math.BigDecimal defaultShippingFee) {
+            this.defaultShippingFee = defaultShippingFee;
+        }
+    }
+
+    public static class Seed {
+        private String productMasterResource = "seed-data/product-master-100.csv";
+
+        public String getProductMasterResource() {
+            return productMasterResource;
+        }
+
+        public void setProductMasterResource(String productMasterResource) {
+            this.productMasterResource = productMasterResource;
+        }
+    }
+
+    public static class Integrations {
+        private String paymentCallbackToken = "local-payment-callback-token";
+
+        public String getPaymentCallbackToken() {
+            return paymentCallbackToken;
+        }
+
+        public void setPaymentCallbackToken(String paymentCallbackToken) {
+            this.paymentCallbackToken = paymentCallbackToken;
         }
     }
 }

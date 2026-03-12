@@ -48,6 +48,7 @@ public class SecurityConfig {
                                 writeError(response, HttpServletResponse.SC_FORBIDDEN, "Access denied")))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payments/callback").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",

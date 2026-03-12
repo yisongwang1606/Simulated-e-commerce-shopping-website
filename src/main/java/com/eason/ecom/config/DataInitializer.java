@@ -1,13 +1,19 @@
 package com.eason.ecom.config;
 
 import java.math.BigDecimal;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.List;
 
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
+import com.eason.ecom.entity.ProductStatus;
 import com.eason.ecom.entity.Product;
+import com.eason.ecom.entity.TaxClass;
 import com.eason.ecom.entity.UserAccount;
 import com.eason.ecom.entity.UserRole;
 import com.eason.ecom.repository.ProductRepository;
@@ -16,19 +22,20 @@ import com.eason.ecom.repository.UserAccountRepository;
 @Component
 public class DataInitializer implements ApplicationRunner {
 
-    private static final List<String> CATEGORIES = List.of("Books", "Clothing", "Home", "Sports", "Electronics");
-
     private final ProductRepository productRepository;
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AppProperties appProperties;
 
     public DataInitializer(
             ProductRepository productRepository,
             UserAccountRepository userAccountRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            AppProperties appProperties) {
         this.productRepository = productRepository;
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
+        this.appProperties = appProperties;
     }
 
     @Override
@@ -63,16 +70,43 @@ public class DataInitializer implements ApplicationRunner {
         }
 
         productRepository.deleteAllInBatch();
+        loadProductsFromCsv();
+    }
 
-        for (int i = 1; i <= 100; i++) {
-            Product product = new Product();
-            product.setName("Product " + i);
-            product.setCategory(CATEGORIES.get((i - 1) % CATEGORIES.size()));
-            product.setPrice(BigDecimal.valueOf(10 + (1.5 * i)).setScale(2));
-            product.setStock(50 + (i % 20));
-            product.setDescription("Demo " + product.getCategory().toLowerCase()
-                    + " item " + i + " for the simulated e-commerce storefront.");
-            productRepository.save(product);
+    private void loadProductsFromCsv() {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new ClassPathResource(appProperties.getSeed().getProductMasterResource()).getInputStream()))) {
+            reader.readLine();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!StringUtils.hasText(line)) {
+                    continue;
+                }
+                String[] values = line.replace("\"", "").split(",");
+                Product product = new Product();
+                product.setSku(values[0]);
+                product.setName(values[1]);
+                product.setBrand(values[2]);
+                product.setCategory(values[3]);
+                product.setPrice(new BigDecimal(values[5]));
+                product.setCostPrice(new BigDecimal(values[6]));
+                product.setStock(Integer.parseInt(values[7]));
+                product.setSafetyStock(Integer.parseInt(values[8]));
+                product.setStatus(ProductStatus.valueOf(values[9]));
+                product.setTaxClass(TaxClass.valueOf(values[10]));
+                product.setWeightKg(new BigDecimal(values[11]));
+                product.setLeadTimeDays(Integer.parseInt(values[12]));
+                product.setFeatured(Boolean.parseBoolean(values[13]));
+                product.setDescription(buildDescription(values[1], values[2], values[4]));
+                productRepository.save(product);
+            }
+        } catch (Exception exception) {
+            throw new IllegalStateException("Failed to seed product master data", exception);
         }
+    }
+
+    private String buildDescription(String productName, String brand, String subCategory) {
+        return productName + " by " + brand + " for the " + subCategory
+                + " category in the enterprise commerce seed catalog.";
     }
 }
