@@ -9,6 +9,7 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Swagger / OpenAPI is enabled.
 - Flyway database migrations are enabled and currently validated through `V6`.
 - The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, support ticket intake, order tagging, admin order/refund/service-desk review surfaces, and a redesigned admin operations overview.
+- Local deployment baseline is now included with Dockerfiles, `docker-compose.yml`, environment-variable-driven configuration, and Actuator health probes.
 
 ## Core Capabilities
 
@@ -48,6 +49,7 @@ It started as a simulated storefront, and is now evolving into a realistic singl
   Tested locally with Memurai on port `6379`
 - springdoc OpenAPI / Swagger UI
 - React 19 + Vite 7 + TypeScript
+- Docker / Docker Compose ready configuration
 
 ## Local Environment
 
@@ -62,6 +64,9 @@ Key config files:
 
 - [`src/main/resources/application.properties`](./src/main/resources/application.properties)
 - [`src/main/resources/application-dev.properties`](./src/main/resources/application-dev.properties)
+- [`src/main/resources/application-docker.properties`](./src/main/resources/application-docker.properties)
+- [`docker-compose.yml`](./docker-compose.yml)
+- [`frontend/nginx.conf`](./frontend/nginx.conf)
 
 Important local defaults:
 
@@ -69,6 +74,7 @@ Important local defaults:
 - MySQL password: `ok`
 - Redis password: `ok`
 - Payment callback token: `local-payment-callback-token`
+- Vite dev proxy target: `http://127.0.0.1:8080`
 
 ## Run The Backend
 
@@ -77,6 +83,12 @@ Start MySQL and Redis first, then run:
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
+
+Health endpoints after startup:
+
+- `http://127.0.0.1:8080/actuator/health`
+- `http://127.0.0.1:8080/actuator/health/liveness`
+- `http://127.0.0.1:8080/actuator/health/readiness`
 
 Build:
 
@@ -101,6 +113,7 @@ npm run dev
 Frontend local default:
 
 - Web UI: `http://127.0.0.1:5173`
+- API base URL: same-origin in containers, Vite proxy in local dev
 
 Frontend build verification:
 
@@ -108,6 +121,27 @@ Frontend build verification:
 cd frontend
 npm run build
 ```
+
+## Run With Docker Compose
+
+Copy the root environment template first if you want custom secrets:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Then start the full stack:
+
+```powershell
+docker compose up --build
+```
+
+Expected service entry points:
+
+- Frontend: `http://127.0.0.1:4173`
+- Backend API: `http://127.0.0.1:8080`
+- Swagger: `http://127.0.0.1:8080/swagger-ui.html`
+- Health: `http://127.0.0.1:8080/actuator/health/readiness`
 
 ## Swagger
 
@@ -290,6 +324,7 @@ Latest verified results:
 
 - 35 backend tests passed
 - Flyway migrations applied through `V6`
+- Actuator readiness endpoint returned `UP`
 - Real end-to-end local verification covered:
   - admin dashboard summary endpoint
   - address selection at order creation
@@ -313,6 +348,7 @@ Latest verified results:
 - Frontend lint passed
 - Frontend production build passed
 - Home, catalog, and admin pages were restyled into stronger dashboard-style layouts
+- Vite local development now proxies `/api`, `/swagger-ui`, `/v3/api-docs`, and `/actuator`
 - Checkout page now creates orders with a selected address snapshot
 - Orders page now surfaces shipment placeholders, refund requests, and support ticket intake
 - Admin page now surfaces live operations metrics, low-stock watchlists, and filters orders while reviewing refunds and support tickets against live APIs
@@ -321,4 +357,5 @@ Latest verified results:
 
 - Payment, shipment, and refund integrations are still simulated integration points, not production third-party gateway connections.
 - This project is currently implemented as a modular monolith, which is intentional for this phase.
-- The frontend is now aligned with the core enterprise APIs, but deeper production concerns such as observability, CI/CD, and external gateway integration still remain for later phases.
+- Dockerfiles and Compose configuration are included, but Docker CLI was not available on this machine during this verification pass, so the YAML and container build flow were prepared but not executed here.
+- The frontend is now aligned with the core enterprise APIs, but deeper production concerns such as CI/CD, external gateway integration, and full observability stacks still remain for later phases.

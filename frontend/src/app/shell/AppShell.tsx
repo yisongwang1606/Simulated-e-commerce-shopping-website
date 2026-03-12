@@ -11,6 +11,7 @@ export function AppShell() {
   const user = useSessionStore((state) => state.user)
   const clearSession = useSessionStore((state) => state.clearSession)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const apiLabel = apiBaseUrl || 'same-origin proxy'
 
   async function handleLogout() {
     setIsLoggingOut(true)
@@ -45,7 +46,7 @@ export function AppShell() {
             </div>
 
             <div className="topbar-status">
-              <span className="signal">API {apiBaseUrl}</span>
+              <span className="signal">API {apiLabel}</span>
               <span className="signal">Java 21 | MySQL 8.4 | Redis 7.4</span>
               {user ? (
                 <span className={`status-pill ${user.role.toLowerCase()}`}>

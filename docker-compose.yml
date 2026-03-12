@@ -1,0 +1,69 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ecom_enterprise
+      MYSQL_USER: ${ECOM_DATASOURCE_USERNAME:-ecom}
+      MYSQL_PASSWORD: ${ECOM_DATASOURCE_PASSWORD:-ecom}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ok}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${ECOM_REDIS_PASSWORD:-ecom-redis}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$ECOM_REDIS_PASSWORD ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    environment:
+      ECOM_REDIS_PASSWORD: ${ECOM_REDIS_PASSWORD:-ecom-redis}
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ECOM_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecom_enterprise?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      ECOM_DATASOURCE_USERNAME: ${ECOM_DATASOURCE_USERNAME:-ecom}
+      ECOM_DATASOURCE_PASSWORD: ${ECOM_DATASOURCE_PASSWORD:-ecom}
+      ECOM_REDIS_HOST: redis
+      ECOM_REDIS_PORT: 6379
+      ECOM_REDIS_PASSWORD: ${ECOM_REDIS_PASSWORD:-ecom-redis}
+      ECOM_JWT_SECRET: ${ECOM_JWT_SECRET:-change-me-to-a-long-english-only-secret-key-for-demo-project-2026}
+      PAYMENT_CALLBACK_TOKEN: ${PAYMENT_CALLBACK_TOKEN:-local-payment-callback-token}
+      PORT: 8080
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    depends_on:
+      - backend
+    ports:
+      - "4173:80"
+
+volumes:
+  mysql_data:
+  redis_data:

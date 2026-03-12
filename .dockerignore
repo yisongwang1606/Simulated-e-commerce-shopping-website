@@ -1,0 +1,10 @@
+.git
+.gitignore
+.codex-temp
+.vscode
+target
+frontend/node_modules
+frontend/dist
+docs
+README.md
+*.log

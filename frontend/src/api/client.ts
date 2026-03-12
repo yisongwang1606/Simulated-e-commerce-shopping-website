@@ -2,11 +2,18 @@ import axios from 'axios'
 
 import { useSessionStore } from '../store/sessionStore'
 
-export const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8080'
+function normalizeBaseUrl(baseUrl: string | undefined): string {
+  if (!baseUrl) {
+    return ''
+  }
+
+  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+}
+
+export const apiBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL)
 
 export const apiClient = axios.create({
-  baseURL: apiBaseUrl,
+  baseURL: apiBaseUrl || undefined,
   headers: {
     'Content-Type': 'application/json',
   },

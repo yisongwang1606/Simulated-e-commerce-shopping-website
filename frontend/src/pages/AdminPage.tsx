@@ -67,6 +67,21 @@ const initialSupportFilters = {
   assignedTeam: '',
 }
 
+function buildSupportTicketDraft(ticket: SupportTicket): SupportTicketUpdateInput {
+  return {
+    status: ticket.ticketStatus as SupportTicketUpdateInput['status'],
+    assignedTeam: ticket.assignedTeam ?? '',
+    assignedToUsername: ticket.assignedToUsername ?? '',
+    latestNote: ticket.latestNote ?? '',
+    resolutionNote: ticket.resolutionNote ?? '',
+  }
+}
+
+function resolveBreakdownWidth(count: number, metrics: Array<{ count: number }>): string {
+  const max = Math.max(...metrics.map((entry) => entry.count), 1)
+  return `${Math.max(16, Math.round((count / max) * 100))}%`
+}
+
 export function AdminPage() {
   const [orderPage, setOrderPage] = useState<PagedResponse<Order> | null>(null)
   const [refundPage, setRefundPage] = useState<PagedResponse<RefundRequest> | null>(
@@ -293,18 +308,10 @@ export function AdminPage() {
     ticket: SupportTicket,
     patch: Partial<SupportTicketUpdateInput>,
   ) {
-    const baseDraft: SupportTicketUpdateInput = {
-      status: ticket.ticketStatus as SupportTicketUpdateInput['status'],
-      assignedTeam: ticket.assignedTeam ?? '',
-      assignedToUsername: ticket.assignedToUsername ?? '',
-      latestNote: ticket.latestNote ?? '',
-      resolutionNote: ticket.resolutionNote ?? '',
-    }
-
     setSupportTicketDrafts((current) => ({
       ...current,
       [ticket.id]: {
-        ...baseDraft,
+        ...buildSupportTicketDraft(ticket),
         ...current[ticket.id],
         ...patch,
       },
@@ -312,13 +319,7 @@ export function AdminPage() {
   }
 
   async function handleSupportTicketUpdate(ticket: SupportTicket) {
-    const payload = supportTicketDrafts[ticket.id] ?? {
-      status: ticket.ticketStatus as SupportTicketUpdateInput['status'],
-      assignedTeam: ticket.assignedTeam ?? '',
-      assignedToUsername: ticket.assignedToUsername ?? '',
-      latestNote: ticket.latestNote ?? '',
-      resolutionNote: ticket.resolutionNote ?? '',
-    }
+    const payload = supportTicketDrafts[ticket.id] ?? buildSupportTicketDraft(ticket)
 
     setUpdatingTicketId(ticket.id)
     setMessage('')
@@ -1055,13 +1056,8 @@ export function AdminPage() {
 
         <div className="stack">
           {supportTicketPage?.items.map((ticket) => {
-            const ticketDraft = supportTicketDrafts[ticket.id] ?? {
-              status: ticket.ticketStatus as SupportTicketUpdateInput['status'],
-              assignedTeam: ticket.assignedTeam ?? '',
-              assignedToUsername: ticket.assignedToUsername ?? '',
-              latestNote: ticket.latestNote ?? '',
-              resolutionNote: ticket.resolutionNote ?? '',
-            }
+            const ticketDraft =
+              supportTicketDrafts[ticket.id] ?? buildSupportTicketDraft(ticket)
 
             return (
               <article className="info-card stack" key={ticket.id}>
@@ -1352,14 +1348,7 @@ export function AdminPage() {
                     <div className="dashboard-breakdown-bar">
                       <span
                         style={{
-                          width: `${Math.max(
-                            16,
-                            Math.round(
-                              (metric.count /
-                                Math.max(...orderFlowVisible.map((entry) => entry.count), 1)) *
-                                100,
-                            ),
-                          )}%`,
+                          width: resolveBreakdownWidth(metric.count, orderFlowVisible),
                         }}
                       />
                     </div>
@@ -1408,14 +1397,7 @@ export function AdminPage() {
                     <div className="dashboard-breakdown-bar support-tone">
                       <span
                         style={{
-                          width: `${Math.max(
-                            16,
-                            Math.round(
-                              (metric.count /
-                                Math.max(...supportFlowVisible.map((entry) => entry.count), 1)) *
-                                100,
-                            ),
-                          )}%`,
+                          width: resolveBreakdownWidth(metric.count, supportFlowVisible),
                         }}
                       />
                     </div>
