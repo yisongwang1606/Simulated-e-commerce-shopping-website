@@ -21,6 +21,8 @@ import com.eason.ecom.dto.InventoryAdjustmentRequest;
 import com.eason.ecom.dto.InventoryAdjustmentResponse;
 import com.eason.ecom.dto.OrderResponse;
 import com.eason.ecom.dto.OrderStatusUpdateRequest;
+import com.eason.ecom.dto.OrderTagAssignmentRequest;
+import com.eason.ecom.dto.OrderTagResponse;
 import com.eason.ecom.dto.OrderInternalNoteRequest;
 import com.eason.ecom.dto.OrderInternalNoteResponse;
 import com.eason.ecom.dto.PagedResponse;
@@ -32,17 +34,22 @@ import com.eason.ecom.dto.ShipmentCreateRequest;
 import com.eason.ecom.dto.ShipmentResponse;
 import com.eason.ecom.dto.ShipmentStatusUpdateRequest;
 import com.eason.ecom.dto.RefundRequestResponse;
+import com.eason.ecom.dto.RefundSummaryResponse;
 import com.eason.ecom.dto.RefundReviewRequest;
+import com.eason.ecom.dto.SupportTicketResponse;
+import com.eason.ecom.dto.SupportTicketUpdateRequest;
 import com.eason.ecom.entity.Product;
 import com.eason.ecom.security.AuthenticatedUser;
 import com.eason.ecom.service.AuditLogService;
 import com.eason.ecom.service.InventoryService;
 import com.eason.ecom.service.OrderService;
+import com.eason.ecom.service.OrderTagService;
 import com.eason.ecom.service.OrderInternalNoteService;
 import com.eason.ecom.service.PaymentService;
 import com.eason.ecom.service.ProductService;
 import com.eason.ecom.service.RefundService;
 import com.eason.ecom.service.ShipmentService;
+import com.eason.ecom.service.SupportTicketService;
 import com.eason.ecom.support.ApiResponseFactory;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -66,6 +73,8 @@ public class AdminController {
     private final ShipmentService shipmentService;
     private final OrderInternalNoteService orderInternalNoteService;
     private final RefundService refundService;
+    private final OrderTagService orderTagService;
+    private final SupportTicketService supportTicketService;
 
     public AdminController(
             ProductService productService,
@@ -75,7 +84,9 @@ public class AdminController {
             PaymentService paymentService,
             ShipmentService shipmentService,
             OrderInternalNoteService orderInternalNoteService,
-            RefundService refundService) {
+            RefundService refundService,
+            OrderTagService orderTagService,
+            SupportTicketService supportTicketService) {
         this.productService = productService;
         this.orderService = orderService;
         this.inventoryService = inventoryService;
@@ -84,6 +95,8 @@ public class AdminController {
         this.shipmentService = shipmentService;
         this.orderInternalNoteService = orderInternalNoteService;
         this.refundService = refundService;
+        this.orderTagService = orderTagService;
+        this.supportTicketService = supportTicketService;
     }
 
     @Operation(
@@ -227,6 +240,85 @@ public class AdminController {
             @Parameter(description = "Order identifier", example = "1")
             @PathVariable @Positive Long orderId) {
         return ApiResponseFactory.ok(orderService.getOrderForAdmin(orderId));
+    }
+
+    @Operation(
+            summary = "List reusable order tags",
+            description = "Returns the operational tag catalog available for order triage and exception handling.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Order tags loaded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin role required")
+    })
+    @GetMapping("/order-tags")
+    public ResponseEntity<ApiResponse<List<OrderTagResponse>>> getOrderTags() {
+        return ApiResponseFactory.ok(orderTagService.getOrderTagCatalog());
+    }
+
+    @Operation(
+            summary = "List tags assigned to an order",
+            description = "Returns the operational tags currently assigned to one order.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Order tags loaded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin role required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found")
+    })
+    @GetMapping("/orders/{orderId}/tags")
+    public ResponseEntity<ApiResponse<List<OrderTagResponse>>> getOrderTagsForOrder(
+            @Parameter(description = "Order identifier", example = "1")
+            @PathVariable @Positive Long orderId) {
+        return ApiResponseFactory.ok(orderTagService.getOrderTags(orderId));
+    }
+
+    @Operation(
+            summary = "Assign a tag to an order",
+            description = "Adds an operational tag such as VIP, fraud review, or address check to an order.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Order tag assigned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid tag payload"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin role required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order or tag not found")
+    })
+    @PostMapping("/orders/{orderId}/tags")
+    public ResponseEntity<ApiResponse<List<OrderTagResponse>>> assignOrderTag(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "Order identifier", example = "1")
+            @PathVariable @Positive Long orderId,
+            @RequestBody @Validated OrderTagAssignmentRequest request) {
+        return ApiResponseFactory.ok(
+                "Order tag assigned successfully",
+                orderTagService.assignTag(
+                        orderId,
+                        request.orderTagId(),
+                        authenticatedUser.getId(),
+                        authenticatedUser.getUsername()));
+    }
+
+    @Operation(
+            summary = "Remove a tag from an order",
+            description = "Removes an operational tag from an order.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Order tag removed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin role required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order or assignment not found")
+    })
+    @DeleteMapping("/orders/{orderId}/tags/{orderTagId}")
+    public ResponseEntity<ApiResponse<List<OrderTagResponse>>> removeOrderTag(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "Order identifier", example = "1")
+            @PathVariable @Positive Long orderId,
+            @Parameter(description = "Order tag identifier", example = "1")
+            @PathVariable @Positive Long orderTagId) {
+        return ApiResponseFactory.ok(
+                "Order tag removed successfully",
+                orderTagService.removeTag(
+                        orderId,
+                        orderTagId,
+                        authenticatedUser.getId(),
+                        authenticatedUser.getUsername()));
     }
 
     @Operation(
@@ -393,6 +485,23 @@ public class AdminController {
     }
 
     @Operation(
+            summary = "Get refund summary metrics",
+            description = "Returns aggregated refund counts and amounts for dashboard use, optionally filtered by requested date range.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Refund summary loaded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin role required")
+    })
+    @GetMapping("/refund-requests/summary")
+    public ResponseEntity<ApiResponse<RefundSummaryResponse>> getRefundSummary(
+            @Parameter(description = "Optional inclusive start date", example = "2026-03-01")
+            @org.springframework.web.bind.annotation.RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate dateFrom,
+            @Parameter(description = "Optional inclusive end date", example = "2026-03-31")
+            @org.springframework.web.bind.annotation.RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate dateTo) {
+        return ApiResponseFactory.ok(refundService.getRefundSummary(dateFrom, dateTo));
+    }
+
+    @Operation(
             summary = "Review a refund request",
             description = "Approves or rejects a refund request and moves the order into REFUND_PENDING when approved.")
     @ApiResponses(value = {
@@ -438,6 +547,54 @@ public class AdminController {
                 shipmentService.markDelivered(
                         shipmentId,
                         request == null ? null : request.note(),
+                        authenticatedUser.getId(),
+                        authenticatedUser.getUsername()));
+    }
+
+    @Operation(
+            summary = "List customer support tickets",
+            description = "Returns support tickets with admin filters such as status, priority, and assigned team.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Support tickets loaded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin role required")
+    })
+    @GetMapping("/support-tickets")
+    public ResponseEntity<ApiResponse<PagedResponse<SupportTicketResponse>>> getSupportTickets(
+            @Parameter(description = "Optional support ticket status filter", example = "OPEN")
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String status,
+            @Parameter(description = "Optional support ticket priority filter", example = "HIGH")
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String priority,
+            @Parameter(description = "Optional assigned team filter", example = "Customer Support")
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String assignedTeam,
+            @Parameter(description = "Zero-based page index", example = "0")
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") @PositiveOrZero int page,
+            @Parameter(description = "Page size", example = "20")
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") @Positive int size) {
+        return ApiResponseFactory.ok(supportTicketService.getTicketsForAdmin(status, priority, assignedTeam, page, size));
+    }
+
+    @Operation(
+            summary = "Update a support ticket",
+            description = "Updates a support ticket status, assignment, and notes from the admin service desk.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Support ticket updated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid support ticket payload"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin role required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Support ticket not found")
+    })
+    @PutMapping("/support-tickets/{ticketId}")
+    public ResponseEntity<ApiResponse<SupportTicketResponse>> updateSupportTicket(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "Support ticket identifier", example = "1")
+            @PathVariable @Positive Long ticketId,
+            @RequestBody @Validated SupportTicketUpdateRequest request) {
+        return ApiResponseFactory.ok(
+                "Support ticket updated successfully",
+                supportTicketService.updateTicket(
+                        ticketId,
+                        request,
                         authenticatedUser.getId(),
                         authenticatedUser.getUsername()));
     }

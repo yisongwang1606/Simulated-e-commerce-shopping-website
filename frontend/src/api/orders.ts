@@ -6,6 +6,8 @@ import type {
   RefundRequest,
   RefundRequestInput,
   Shipment,
+  SupportTicket,
+  SupportTicketInput,
 } from './contracts'
 
 export async function getOrders(): Promise<Order[]> {
@@ -46,6 +48,28 @@ export async function createRefundRequest(
 ): Promise<RefundRequest> {
   const { data } = await apiClient.post<ApiResponse<RefundRequest>>(
     `/api/orders/${orderId}/refund-requests`,
+    payload,
+  )
+
+  return data.data
+}
+
+export async function getOrderSupportTickets(
+  orderId: number,
+): Promise<SupportTicket[]> {
+  const { data } = await apiClient.get<ApiResponse<SupportTicket[]>>(
+    `/api/orders/${orderId}/support-tickets`,
+  )
+
+  return data.data
+}
+
+export async function createOrderSupportTicket(
+  orderId: number,
+  payload: SupportTicketInput,
+): Promise<SupportTicket> {
+  const { data } = await apiClient.post<ApiResponse<SupportTicket>>(
+    `/api/orders/${orderId}/support-tickets`,
     payload,
   )
 

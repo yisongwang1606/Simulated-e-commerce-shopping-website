@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 import com.eason.ecom.config.AppProperties;
 import com.eason.ecom.dto.OrderItemResponse;
 import com.eason.ecom.dto.OrderAddressSnapshotResponse;
+import com.eason.ecom.dto.OrderTagResponse;
 import com.eason.ecom.dto.PagedResponse;
 import com.eason.ecom.dto.OrderResponse;
 import com.eason.ecom.entity.CustomerOrder;
@@ -271,6 +272,15 @@ public class OrderService {
                         item.getLineTotal()))
                 .toList();
 
+        List<OrderTagResponse> tags = customerOrder.getTagAssignments().stream()
+                .map(tagAssignment -> new OrderTagResponse(
+                        tagAssignment.getOrderTag().getId(),
+                        tagAssignment.getOrderTag().getTagCode(),
+                        tagAssignment.getOrderTag().getDisplayName(),
+                        tagAssignment.getOrderTag().getTagGroup(),
+                        tagAssignment.getOrderTag().getTone()))
+                .toList();
+
         return new OrderResponse(
                 customerOrder.getId(),
                 customerOrder.getOrderNo(),
@@ -287,7 +297,8 @@ public class OrderService {
                 customerOrder.getCreatedAt(),
                 customerOrder.getStatusUpdatedAt(),
                 customerOrder.getUpdatedAt(),
-                items);
+                items,
+                tags);
     }
 
     private void applyShippingAddress(CustomerOrder customerOrder, Long userId, Long addressId) {

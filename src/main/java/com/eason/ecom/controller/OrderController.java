@@ -18,10 +18,13 @@ import com.eason.ecom.dto.OrderResponse;
 import com.eason.ecom.dto.RefundRequestCreateRequest;
 import com.eason.ecom.dto.RefundRequestResponse;
 import com.eason.ecom.dto.ShipmentResponse;
+import com.eason.ecom.dto.SupportTicketCreateRequest;
+import com.eason.ecom.dto.SupportTicketResponse;
 import com.eason.ecom.security.AuthenticatedUser;
 import com.eason.ecom.service.OrderService;
 import com.eason.ecom.service.RefundService;
 import com.eason.ecom.service.ShipmentService;
+import com.eason.ecom.service.SupportTicketService;
 import com.eason.ecom.support.ApiResponseFactory;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,11 +42,17 @@ public class OrderController {
     private final OrderService orderService;
     private final ShipmentService shipmentService;
     private final RefundService refundService;
+    private final SupportTicketService supportTicketService;
 
-    public OrderController(OrderService orderService, ShipmentService shipmentService, RefundService refundService) {
+    public OrderController(
+            OrderService orderService,
+            ShipmentService shipmentService,
+            RefundService refundService,
+            SupportTicketService supportTicketService) {
         this.orderService = orderService;
         this.shipmentService = shipmentService;
         this.refundService = refundService;
+        this.supportTicketService = supportTicketService;
     }
 
     @Operation(
@@ -147,5 +156,45 @@ public class OrderController {
             @Parameter(description = "Order identifier", example = "1")
             @PathVariable @Positive Long orderId) {
         return ApiResponseFactory.ok(refundService.getRefundRequestsForUser(authenticatedUser.getId(), orderId));
+    }
+
+    @Operation(
+            summary = "Create a customer support ticket for one order",
+            description = "Allows the authenticated customer to open a support case tied to a specific order.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Support ticket created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid support ticket payload"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found")
+    })
+    @PostMapping("/{orderId}/support-tickets")
+    public ResponseEntity<ApiResponse<SupportTicketResponse>> createSupportTicket(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "Order identifier", example = "1")
+            @PathVariable @Positive Long orderId,
+            @RequestBody @Validated SupportTicketCreateRequest request) {
+        return ApiResponseFactory.created(
+                "Support ticket created successfully",
+                supportTicketService.createTicket(
+                        authenticatedUser.getId(),
+                        authenticatedUser.getUsername(),
+                        orderId,
+                        request));
+    }
+
+    @Operation(
+            summary = "List support tickets for one order",
+            description = "Returns support tickets raised by the authenticated customer for the selected order.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Support tickets loaded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found")
+    })
+    @GetMapping("/{orderId}/support-tickets")
+    public ResponseEntity<ApiResponse<List<SupportTicketResponse>>> getSupportTickets(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "Order identifier", example = "1")
+            @PathVariable @Positive Long orderId) {
+        return ApiResponseFactory.ok(supportTicketService.getTicketsForUser(authenticatedUser.getId(), orderId));
     }
 }

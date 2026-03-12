@@ -2,6 +2,7 @@ package com.eason.ecom.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +16,7 @@ import org.springframework.util.StringUtils;
 import com.eason.ecom.dto.PagedResponse;
 import com.eason.ecom.dto.RefundRequestCreateRequest;
 import com.eason.ecom.dto.RefundRequestResponse;
+import com.eason.ecom.dto.RefundSummaryResponse;
 import com.eason.ecom.dto.RefundReviewRequest;
 import com.eason.ecom.entity.CustomerOrder;
 import com.eason.ecom.entity.OrderStatus;
@@ -106,6 +108,56 @@ public class RefundService {
                 refundPage.getTotalPages(),
                 refundPage.getNumber(),
                 refundPage.getSize());
+    }
+
+    @Transactional(readOnly = true)
+    public RefundSummaryResponse getRefundSummary(LocalDate dateFrom, LocalDate dateTo) {
+        LocalDateTime dateFromDateTime = dateFrom == null ? null : dateFrom.atStartOfDay();
+        LocalDateTime dateToExclusive = dateTo == null ? null : dateTo.plusDays(1).atStartOfDay();
+
+        long totalRequests = 0L;
+        long requestedCount = 0L;
+        long approvedCount = 0L;
+        long rejectedCount = 0L;
+        long settledCount = 0L;
+        BigDecimal requestedAmount = BigDecimal.ZERO;
+        BigDecimal approvedAmount = BigDecimal.ZERO;
+        BigDecimal settledAmount = BigDecimal.ZERO;
+
+        for (Object[] row : refundRequestRepository.summarizeByStatus(dateFromDateTime, dateToExclusive)) {
+            RefundStatus refundStatus = (RefundStatus) row[0];
+            long count = ((Number) row[1]).longValue();
+            BigDecimal amount = row[2] instanceof BigDecimal bigDecimal
+                    ? bigDecimal
+                    : BigDecimal.valueOf(((Number) row[2]).doubleValue());
+
+            totalRequests += count;
+            switch (refundStatus) {
+                case REQUESTED -> {
+                    requestedCount = count;
+                    requestedAmount = amount;
+                }
+                case APPROVED -> {
+                    approvedCount = count;
+                    approvedAmount = amount;
+                }
+                case REJECTED -> rejectedCount = count;
+                case SETTLED -> {
+                    settledCount = count;
+                    settledAmount = amount;
+                }
+            }
+        }
+
+        return new RefundSummaryResponse(
+                totalRequests,
+                requestedCount,
+                approvedCount,
+                rejectedCount,
+                settledCount,
+                requestedAmount,
+                approvedAmount,
+                settledAmount);
     }
 
     @Transactional

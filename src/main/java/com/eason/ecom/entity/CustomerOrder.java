@@ -3,7 +3,9 @@ package com.eason.ecom.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -91,6 +93,9 @@ public class CustomerOrder {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<OrderTagAssignment> tagAssignments = new LinkedHashSet<>();
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) {
@@ -115,6 +120,11 @@ public class CustomerOrder {
     public void addItem(OrderItem item) {
         items.add(item);
         item.setOrder(this);
+    }
+
+    public void addTagAssignment(OrderTagAssignment tagAssignment) {
+        tagAssignments.add(tagAssignment);
+        tagAssignment.setOrder(this);
     }
 
     public Long getId() {
@@ -283,5 +293,13 @@ public class CustomerOrder {
 
     public void setItems(List<OrderItem> items) {
         this.items = items;
+    }
+
+    public Set<OrderTagAssignment> getTagAssignments() {
+        return tagAssignments;
+    }
+
+    public void setTagAssignments(Set<OrderTagAssignment> tagAssignments) {
+        this.tagAssignments = tagAssignments;
     }
 }

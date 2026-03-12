@@ -147,6 +147,14 @@ export interface OrderItem {
   subtotal: number
 }
 
+export interface OrderTag {
+  id: number
+  tagCode: string
+  displayName: string
+  tagGroup: string
+  tone: string
+}
+
 export interface Order {
   id: number
   orderNo: string
@@ -164,6 +172,7 @@ export interface Order {
   statusUpdatedAt: string | null
   updatedAt: string | null
   items: OrderItem[]
+  tags: OrderTag[]
 }
 
 export interface CreateOrderInput {
@@ -207,4 +216,51 @@ export interface RefundRequestInput {
 export interface RefundReviewInput {
   decision: 'APPROVED' | 'REJECTED'
   reviewNote?: string
+}
+
+export interface RefundSummary {
+  totalRequests: number
+  requestedCount: number
+  approvedCount: number
+  rejectedCount: number
+  settledCount: number
+  requestedAmount: number
+  approvedAmount: number
+  settledAmount: number
+}
+
+export interface SupportTicket {
+  id: number
+  orderId: number
+  orderNo: string
+  ticketNo: string
+  ticketStatus: string
+  priority: string
+  category: string
+  subject: string
+  customerMessage: string
+  latestNote: string | null
+  assignedTeam: string | null
+  assignedToUsername: string | null
+  resolutionNote: string | null
+  requestedByUserId: number
+  requestedByUsername: string
+  createdAt: string
+  updatedAt: string
+  resolvedAt: string | null
+}
+
+export interface SupportTicketInput {
+  category: string
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  subject: string
+  customerMessage: string
+}
+
+export interface SupportTicketUpdateInput {
+  status?: 'OPEN' | 'IN_PROGRESS' | 'WAITING_ON_CUSTOMER' | 'RESOLVED' | 'CLOSED'
+  assignedTeam?: string
+  assignedToUsername?: string
+  latestNote?: string
+  resolutionNote?: string
 }

@@ -7,8 +7,8 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 
 - Backend enterprise baseline is implemented and verified locally.
 - Swagger / OpenAPI is enabled.
-- Flyway database migrations are enabled and currently validated through `V5`.
-- The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, and admin order/refund review surfaces.
+- Flyway database migrations are enabled and currently validated through `V6`.
+- The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, support ticket intake, order tagging, and admin order/refund/service-desk review surfaces.
 
 ## Core Capabilities
 
@@ -28,7 +28,10 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Customer refund request flow and admin refund review
 - Frontend checkout address selection with inline address capture
 - Frontend order history view with shipment and refund follow-up
-- Frontend admin dashboard with order search filters and refund review actions
+- Customer support ticket creation and admin service-desk handling
+- Operational order tags for triage and exception handling
+- Refund summary metrics for the admin dashboard
+- Frontend admin dashboard with order search filters, order tagging, refund review, and support ticket actions
 - Swagger-documented admin endpoints for catalog, orders, inventory, payments, shipments, refunds, and audit logs
 
 ## Tech Stack
@@ -190,6 +193,10 @@ Admin:
 - `GET /api/admin/orders`
 - `GET /api/admin/orders/search`
 - `GET /api/admin/orders/{orderId}`
+- `GET /api/admin/order-tags`
+- `GET /api/admin/orders/{orderId}/tags`
+- `POST /api/admin/orders/{orderId}/tags`
+- `DELETE /api/admin/orders/{orderId}/tags/{orderTagId}`
 - `PUT /api/admin/orders/{orderId}/status`
 - `POST /api/admin/orders/{orderId}/payments`
 - `GET /api/admin/orders/{orderId}/payments`
@@ -201,7 +208,10 @@ Admin:
 - `POST /api/admin/products/{productId}/inventory-adjustments`
 - `GET /api/admin/products/{productId}/inventory-adjustments`
 - `GET /api/admin/refund-requests`
+- `GET /api/admin/refund-requests/summary`
 - `PUT /api/admin/refund-requests/{refundRequestId}/review`
+- `GET /api/admin/support-tickets`
+- `PUT /api/admin/support-tickets/{ticketId}`
 - `GET /api/admin/audit-logs`
 
 ## Enterprise Workflow Coverage
@@ -228,6 +238,13 @@ Implemented and verified:
   - customer refund request
   - admin review
   - settlement mark on refund callback
+- Support operations:
+  - customer support ticket creation from order history
+  - admin assignment, escalation, and resolution notes
+- Order triage:
+  - reusable operational tag catalog
+  - tag assignment and removal on admin order results
+  - refund summary metrics for live dashboard use
 - Customer data:
   - default address book
   - explicit address selection during order creation
@@ -266,14 +283,16 @@ Latest backend verification:
 Latest verified results:
 
 - 27 backend tests passed
-- Flyway migrations applied through `V5`
+- 34 backend tests passed
+- Flyway migrations applied through `V6`
 - Real end-to-end local verification covered:
   - address selection at order creation
+  - order tag assignment
+  - customer support ticket creation
+  - admin support ticket update
   - admin order search
-  - payment initiation and callback
-  - shipment creation and delivery
-  - refund request, review, and refund settlement callback
-  - audit and inventory side effects
+  - refund summary dashboard endpoint
+  - payment, shipment, refund, audit, and inventory flows from previous iterations
 
 Latest frontend verification:
 
@@ -288,8 +307,8 @@ Latest verified results:
 - Frontend lint passed
 - Frontend production build passed
 - Checkout page now creates orders with a selected address snapshot
-- Orders page now surfaces shipment placeholders and refund requests
-- Admin page now filters orders and reviews refund requests against live APIs
+- Orders page now surfaces shipment placeholders, refund requests, and support ticket intake
+- Admin page now filters orders, assigns/removes tags, reviews refund requests, and updates support tickets against live APIs
 
 ## Notes
 

@@ -1,12 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import {
+  createOrderSupportTicket,
   createRefundRequest,
   getOrderRefundRequests,
   getOrders,
   getOrderShipments,
+  getOrderSupportTickets,
 } from '../api/orders'
-import type { Order, RefundRequest, Shipment } from '../api/contracts'
+import type {
+  Order,
+  RefundRequest,
+  Shipment,
+  SupportTicket,
+  SupportTicketInput,
+} from '../api/contracts'
 import { extractErrorMessage } from '../shared/error'
 import { formatCurrency, formatDate, formatDateTime } from '../shared/formatters'
 import { EmptyState } from '../shared/ui/EmptyState'
@@ -15,26 +23,43 @@ import { SectionHeading } from '../shared/ui/SectionHeading'
 import { StatusPill } from '../shared/ui/StatusPill'
 
 const refundableStatuses = new Set(['SHIPPED', 'COMPLETED'])
+const defaultTicketDraft: SupportTicketInput = {
+  category: 'DELIVERY',
+  priority: 'MEDIUM',
+  subject: '',
+  customerMessage: '',
+}
 
 export function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<number, boolean>>({})
   const [refundDrafts, setRefundDrafts] = useState<Record<number, string>>({})
+  const [ticketDrafts, setTicketDrafts] = useState<
+    Record<number, SupportTicketInput>
+  >({})
   const [refundsByOrder, setRefundsByOrder] = useState<Record<number, RefundRequest[]>>(
     {},
   )
   const [shipmentsByOrder, setShipmentsByOrder] = useState<Record<number, Shipment[]>>(
     {},
   )
+  const [supportTicketsByOrder, setSupportTicketsByOrder] = useState<
+    Record<number, SupportTicket[]>
+  >({})
   const [detailLoadingByOrder, setDetailLoadingByOrder] = useState<Record<number, boolean>>(
     {},
   )
-  const [submittingOrderId, setSubmittingOrderId] = useState<number | null>(null)
+  const [submittingRefundOrderId, setSubmittingRefundOrderId] = useState<number | null>(
+    null,
+  )
+  const [submittingTicketOrderId, setSubmittingTicketOrderId] = useState<number | null>(
+    null,
+  )
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
-  async function loadOrders() {
+  const loadOrders = useCallback(async () => {
     setIsLoading(true)
     setErrorMessage('')
 
@@ -46,29 +71,34 @@ export function OrdersPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     void loadOrders()
-  }, [])
+  }, [loadOrders])
 
-  async function loadOrderOperations(orderId: number) {
+  const loadOrderOperations = useCallback(async (orderId: number) => {
     setDetailLoadingByOrder((current) => ({ ...current, [orderId]: true }))
 
     try {
-      const [refunds, shipments] = await Promise.all([
+      const [refunds, shipments, supportTickets] = await Promise.all([
         getOrderRefundRequests(orderId),
         getOrderShipments(orderId),
+        getOrderSupportTickets(orderId),
       ])
 
       setRefundsByOrder((current) => ({ ...current, [orderId]: refunds }))
       setShipmentsByOrder((current) => ({ ...current, [orderId]: shipments }))
+      setSupportTicketsByOrder((current) => ({
+        ...current,
+        [orderId]: supportTickets,
+      }))
     } catch (error) {
       setErrorMessage(extractErrorMessage(error))
     } finally {
       setDetailLoadingByOrder((current) => ({ ...current, [orderId]: false }))
     }
-  }
+  }, [])
 
   function handleToggleOrder(orderId: number) {
     const shouldOpen = !expandedOrderIds[orderId]
@@ -78,7 +108,8 @@ export function OrdersPage() {
     if (
       shouldOpen &&
       refundsByOrder[orderId] === undefined &&
-      shipmentsByOrder[orderId] === undefined
+      shipmentsByOrder[orderId] === undefined &&
+      supportTicketsByOrder[orderId] === undefined
     ) {
       void loadOrderOperations(orderId)
     }
@@ -92,7 +123,7 @@ export function OrdersPage() {
       return
     }
 
-    setSubmittingOrderId(orderId)
+    setSubmittingRefundOrderId(orderId)
     setMessage('')
     setErrorMessage('')
 
@@ -104,17 +135,60 @@ export function OrdersPage() {
     } catch (error) {
       setErrorMessage(extractErrorMessage(error))
     } finally {
-      setSubmittingOrderId(null)
+      setSubmittingRefundOrderId(null)
     }
+  }
+
+  async function handleSupportTicketSubmit(orderId: number) {
+    const ticketDraft = ticketDrafts[orderId] ?? defaultTicketDraft
+    if (!ticketDraft.subject.trim() || !ticketDraft.customerMessage.trim()) {
+      setErrorMessage('Enter a ticket subject and message before submitting.')
+      return
+    }
+
+    setSubmittingTicketOrderId(orderId)
+    setMessage('')
+    setErrorMessage('')
+
+    try {
+      const supportTicket = await createOrderSupportTicket(orderId, {
+        ...ticketDraft,
+        subject: ticketDraft.subject.trim(),
+        customerMessage: ticketDraft.customerMessage.trim(),
+      })
+      setTicketDrafts((current) => ({
+        ...current,
+        [orderId]: defaultTicketDraft,
+      }))
+      setMessage(`Support ticket ${supportTicket.ticketNo} created for ${supportTicket.orderNo}.`)
+      await loadOrderOperations(orderId)
+    } catch (error) {
+      setErrorMessage(extractErrorMessage(error))
+    } finally {
+      setSubmittingTicketOrderId(null)
+    }
+  }
+
+  function updateTicketDraft(
+    orderId: number,
+    patch: Partial<SupportTicketInput>,
+  ) {
+    setTicketDrafts((current) => ({
+      ...current,
+      [orderId]: {
+        ...(current[orderId] ?? defaultTicketDraft),
+        ...patch,
+      },
+    }))
   }
 
   return (
     <div className="stack-lg">
       <section className="surface stack-lg">
         <SectionHeading
-          description="Customers can now inspect shipment placeholders, review stored delivery snapshots, and raise refund requests directly from order history."
+          description="Customers can track delivery records, raise refund requests, and open service tickets from the same order workspace."
           eyebrow="Orders"
-          title="Customer order history and service follow-up"
+          title="Customer order history and after-sales desk"
         />
 
         {message ? <div className="message">{message}</div> : null}
@@ -127,9 +201,11 @@ export function OrdersPage() {
             {orders.map((order) => {
               const shipments = shipmentsByOrder[order.id] ?? []
               const refundRequests = refundsByOrder[order.id] ?? []
+              const supportTickets = supportTicketsByOrder[order.id] ?? []
               const canRequestRefund =
                 refundableStatuses.has(order.status) &&
                 !refundRequests.some((request) => request.refundStatus !== 'REJECTED')
+              const ticketDraft = ticketDrafts[order.id] ?? defaultTicketDraft
 
               return (
                 <article className="order-card enterprise-order-card" key={order.id}>
@@ -256,7 +332,7 @@ export function OrdersPage() {
                             <div className="toolbar">
                               <div>
                                 <p className="eyebrow">Refund requests</p>
-                                <h4 className="card-title">After-sales handling</h4>
+                                <h4 className="card-title">Finance and returns</h4>
                               </div>
                               <span className="signal">{refundRequests.length} requests</span>
                             </div>
@@ -305,16 +381,141 @@ export function OrdersPage() {
                                 </div>
                                 <button
                                   className="button"
-                                  disabled={submittingOrderId === order.id}
+                                  disabled={submittingRefundOrderId === order.id}
                                   onClick={() => void handleRefundSubmit(order.id)}
                                   type="button"
                                 >
-                                  {submittingOrderId === order.id
+                                  {submittingRefundOrderId === order.id
                                     ? 'Submitting refund...'
                                     : 'Request refund'}
                                 </button>
                               </div>
                             ) : null}
+                          </section>
+
+                          <section className="info-card stack">
+                            <div className="toolbar">
+                              <div>
+                                <p className="eyebrow">Support tickets</p>
+                                <h4 className="card-title">Service desk</h4>
+                              </div>
+                              <span className="signal">{supportTickets.length} cases</span>
+                            </div>
+
+                            {supportTickets.length > 0 ? (
+                              <div className="stack">
+                                {supportTickets.map((supportTicket) => (
+                                  <div className="detail-row" key={supportTicket.id}>
+                                    <div className="stack">
+                                      <strong>{supportTicket.ticketNo}</strong>
+                                      <span className="supporting-copy">
+                                        {supportTicket.subject}
+                                      </span>
+                                      <span className="supporting-copy">
+                                        {supportTicket.category} · {supportTicket.priority}
+                                      </span>
+                                      {supportTicket.latestNote ? (
+                                        <span className="supporting-copy">
+                                          Latest note: {supportTicket.latestNote}
+                                        </span>
+                                      ) : null}
+                                      {supportTicket.assignedTeam ? (
+                                        <span className="supporting-copy">
+                                          Assigned to {supportTicket.assignedTeam}
+                                          {supportTicket.assignedToUsername
+                                            ? ` · ${supportTicket.assignedToUsername}`
+                                            : ''}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <StatusPill value={supportTicket.ticketStatus} />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="supporting-copy">
+                                No support tickets have been opened for this order.
+                              </p>
+                            )}
+
+                            <div className="stack refund-form">
+                              <div className="form-columns">
+                                <div className="field">
+                                  <label htmlFor={`ticket-category-${order.id}`}>Category</label>
+                                  <select
+                                    id={`ticket-category-${order.id}`}
+                                    onChange={(event) =>
+                                      updateTicketDraft(order.id, {
+                                        category: event.target.value,
+                                      })
+                                    }
+                                    value={ticketDraft.category}
+                                  >
+                                    <option value="DELIVERY">DELIVERY</option>
+                                    <option value="DAMAGE">DAMAGE</option>
+                                    <option value="BILLING">BILLING</option>
+                                    <option value="RETURN">RETURN</option>
+                                    <option value="OTHER">OTHER</option>
+                                  </select>
+                                </div>
+                                <div className="field">
+                                  <label htmlFor={`ticket-priority-${order.id}`}>Priority</label>
+                                  <select
+                                    id={`ticket-priority-${order.id}`}
+                                    onChange={(event) =>
+                                      updateTicketDraft(order.id, {
+                                        priority: event.target.value as SupportTicketInput['priority'],
+                                      })
+                                    }
+                                    value={ticketDraft.priority}
+                                  >
+                                    <option value="LOW">LOW</option>
+                                    <option value="MEDIUM">MEDIUM</option>
+                                    <option value="HIGH">HIGH</option>
+                                    <option value="URGENT">URGENT</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div className="field">
+                                <label htmlFor={`ticket-subject-${order.id}`}>Subject</label>
+                                <input
+                                  id={`ticket-subject-${order.id}`}
+                                  onChange={(event) =>
+                                    updateTicketDraft(order.id, {
+                                      subject: event.target.value,
+                                    })
+                                  }
+                                  placeholder="Summarize the issue for support."
+                                  value={ticketDraft.subject}
+                                />
+                              </div>
+
+                              <div className="field">
+                                <label htmlFor={`ticket-message-${order.id}`}>Details</label>
+                                <textarea
+                                  id={`ticket-message-${order.id}`}
+                                  onChange={(event) =>
+                                    updateTicketDraft(order.id, {
+                                      customerMessage: event.target.value,
+                                    })
+                                  }
+                                  placeholder="Describe what happened and what you need next."
+                                  value={ticketDraft.customerMessage}
+                                />
+                              </div>
+
+                              <button
+                                className="button"
+                                disabled={submittingTicketOrderId === order.id}
+                                onClick={() => void handleSupportTicketSubmit(order.id)}
+                                type="button"
+                              >
+                                {submittingTicketOrderId === order.id
+                                  ? 'Submitting case...'
+                                  : 'Open support case'}
+                              </button>
+                            </div>
                           </section>
                         </div>
                       )

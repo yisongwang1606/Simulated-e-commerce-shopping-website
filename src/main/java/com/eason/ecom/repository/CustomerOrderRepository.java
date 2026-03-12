@@ -15,20 +15,20 @@ import com.eason.ecom.entity.CustomerOrder;
 
 public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Long>, JpaSpecificationExecutor<CustomerOrder> {
 
-    @EntityGraph(attributePaths = {"user", "items", "items.product"})
+    @EntityGraph(attributePaths = {"user", "items", "items.product", "tagAssignments", "tagAssignments.orderTag"})
     List<CustomerOrder> findByUserIdOrderByCreatedAtDesc(Long userId);
 
-    @EntityGraph(attributePaths = {"user", "items", "items.product"})
+    @EntityGraph(attributePaths = {"user", "items", "items.product", "tagAssignments", "tagAssignments.orderTag"})
     Optional<CustomerOrder> findByIdAndUserId(Long id, Long userId);
 
-    @EntityGraph(attributePaths = {"user", "items", "items.product"})
+    @EntityGraph(attributePaths = {"user", "items", "items.product", "tagAssignments", "tagAssignments.orderTag"})
     List<CustomerOrder> findAllByOrderByCreatedAtDesc();
 
-    @EntityGraph(attributePaths = {"user", "items", "items.product"})
+    @EntityGraph(attributePaths = {"user", "items", "items.product", "tagAssignments", "tagAssignments.orderTag"})
     @Query("select customerOrder from CustomerOrder customerOrder where customerOrder.id = :id")
     Optional<CustomerOrder> findWithDetailsById(@Param("id") Long id);
 
     @Override
-    @EntityGraph(attributePaths = {"user", "items", "items.product"})
+    @EntityGraph(attributePaths = {"user", "items", "items.product", "tagAssignments", "tagAssignments.orderTag"})
     Page<CustomerOrder> findAll(org.springframework.data.jpa.domain.Specification<CustomerOrder> spec, Pageable pageable);
 }

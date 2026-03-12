@@ -141,7 +141,8 @@
 .pill,
 .status-pill,
 .signal,
-.chip {
+.chip,
+.tag-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -173,7 +174,8 @@
 .status-pill.payment_pending,
 .status-pill.requested,
 .status-pill.customer,
-.status-pill.shipped {
+.status-pill.shipped,
+.status-pill.medium {
   color: #8b5a08;
 }
 
@@ -184,7 +186,11 @@
 .status-pill.active,
 .status-pill.settled,
 .status-pill.refunded,
-.status-pill.refund_pending {
+.status-pill.refund_pending,
+.status-pill.resolved,
+.status-pill.open,
+.status-pill.in_progress,
+.status-pill.low {
   color: var(--emerald);
 }
 
@@ -193,14 +199,42 @@
 }
 
 .status-pill.rejected,
-.status-pill.inactive {
+.status-pill.inactive,
+.status-pill.closed,
+.status-pill.high,
+.status-pill.urgent {
   color: #8a3d2b;
+}
+
+.status-pill.waiting_on_customer {
+  color: #8b5a08;
 }
 
 .chip {
   border: 1px solid rgba(24, 33, 29, 0.1);
   background: rgba(255, 255, 255, 0.68);
   color: var(--muted);
+}
+
+.tag-chip {
+  border: 1px solid rgba(24, 33, 29, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+}
+
+.tag-chip.emerald {
+  background: rgba(31, 106, 89, 0.12);
+  color: var(--emerald);
+}
+
+.tag-chip.sun {
+  background: rgba(246, 200, 95, 0.22);
+  color: #8b5a08;
+}
+
+.tag-chip.accent {
+  background: rgba(178, 76, 36, 0.12);
+  color: #8a3d2b;
 }
 
 .chip.active {
@@ -515,7 +549,7 @@
 
 .service-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
 }
 

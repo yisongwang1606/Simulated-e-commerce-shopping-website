@@ -23,6 +23,7 @@ import org.springframework.data.domain.PageRequest;
 import com.eason.ecom.dto.PagedResponse;
 import com.eason.ecom.dto.RefundRequestCreateRequest;
 import com.eason.ecom.dto.RefundRequestResponse;
+import com.eason.ecom.dto.RefundSummaryResponse;
 import com.eason.ecom.dto.RefundReviewRequest;
 import com.eason.ecom.entity.CustomerOrder;
 import com.eason.ecom.entity.OrderStatus;
@@ -130,6 +131,21 @@ class RefundServiceTest {
 
         assertEquals(1, response.totalElements());
         assertEquals("REQUESTED", response.items().getFirst().refundStatus());
+    }
+
+    @Test
+    void refundSummaryAggregatesCountsAndAmounts() {
+        when(refundRequestRepository.summarizeByStatus(any(), any())).thenReturn(List.of(
+                new Object[] {RefundStatus.REQUESTED, 2L, new java.math.BigDecimal("145.00")},
+                new Object[] {RefundStatus.SETTLED, 1L, new java.math.BigDecimal("72.50")}));
+
+        RefundSummaryResponse response = refundService.getRefundSummary(null, null);
+
+        assertEquals(3L, response.totalRequests());
+        assertEquals(2L, response.requestedCount());
+        assertEquals(new java.math.BigDecimal("145.00"), response.requestedAmount());
+        assertEquals(1L, response.settledCount());
+        assertEquals(new java.math.BigDecimal("72.50"), response.settledAmount());
     }
 
     private CustomerOrder buildOrder(OrderStatus status) {
