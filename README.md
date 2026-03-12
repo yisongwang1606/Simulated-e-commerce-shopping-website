@@ -3,6 +3,11 @@
 An enterprise-style e-commerce training project built on the current Spring Boot + React codebase.  
 It started as a simulated storefront, and is now evolving into a realistic single-repo commerce platform with order lifecycle control, inventory traceability, payment and shipment integration points, customer address book support, refund workflow, and admin audit visibility.
 
+## Documentation
+
+- Requirements specification: [`docs/enterprise-commerce-requirements.md`](./docs/enterprise-commerce-requirements.md)
+- Technology usage guide: [`docs/system-technology-usage.md`](./docs/system-technology-usage.md)
+
 ## Current Status
 
 - Backend enterprise baseline is implemented and verified locally.
