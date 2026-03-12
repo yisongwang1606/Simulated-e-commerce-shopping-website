@@ -46,6 +46,9 @@ public class PaymentTransaction {
     @Column(name = "provider_event_id", length = 64)
     private String providerEventId;
 
+    @Column(name = "provider_reference", length = 128)
+    private String providerReference;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
@@ -133,6 +136,14 @@ public class PaymentTransaction {
 
     public void setProviderEventId(String providerEventId) {
         this.providerEventId = providerEventId;
+    }
+
+    public String getProviderReference() {
+        return providerReference;
+    }
+
+    public void setProviderReference(String providerReference) {
+        this.providerReference = providerReference;
     }
 
     public BigDecimal getAmount() {

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: ecom-dashboards
+    folder: Ecom
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 15
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

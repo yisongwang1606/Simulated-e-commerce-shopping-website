@@ -23,7 +23,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Validated
 @RestController
 @RequestMapping("/api/payments")
-@Tag(name = "Payments", description = "Payment integration placeholder endpoints")
+@Tag(name = "Payments", description = "Payment integration endpoints for simulated and Stripe-backed flows")
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -53,5 +53,21 @@ public class PaymentController {
         return ApiResponseFactory.ok(
                 "Payment callback processed successfully",
                 paymentService.handleCallback(request));
+    }
+
+    @Operation(
+            summary = "Process a Stripe webhook event",
+            description = "Verifies the Stripe signature header, maps supported PaymentIntent events into the internal payment workflow, and ignores unrelated Stripe events.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stripe event accepted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid Stripe signature or payload")
+    })
+    @PostMapping("/stripe/webhook")
+    public ResponseEntity<ApiResponse<String>> processStripeWebhook(
+            @RequestHeader(name = "Stripe-Signature", required = false) String signatureHeader,
+            @RequestBody String payload) {
+        return ApiResponseFactory.ok(
+                "Stripe event processed",
+                paymentService.handleStripeWebhook(payload, signatureHeader));
     }
 }

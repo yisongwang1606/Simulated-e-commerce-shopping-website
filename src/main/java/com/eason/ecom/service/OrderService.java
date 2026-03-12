@@ -31,6 +31,9 @@ import com.eason.ecom.entity.Product;
 import com.eason.ecom.entity.UserAccount;
 import com.eason.ecom.exception.BadRequestException;
 import com.eason.ecom.exception.ResourceNotFoundException;
+import com.eason.ecom.messaging.OrderEventType;
+import com.eason.ecom.messaging.OrderLifecycleEventFactory;
+import com.eason.ecom.messaging.OrderLifecycleEventPublisher;
 import com.eason.ecom.repository.CustomerOrderRepository;
 import com.eason.ecom.repository.ProductRepository;
 import com.eason.ecom.repository.UserAccountRepository;
@@ -48,8 +51,11 @@ public class OrderService {
     private final AddressService addressService;
     private final InventoryService inventoryService;
     private final AuditLogService auditLogService;
+    private final CommerceMetricsService commerceMetricsService;
     private final AppProperties appProperties;
     private final OrderNumberGenerator orderNumberGenerator;
+    private final OrderLifecycleEventFactory orderLifecycleEventFactory;
+    private final OrderLifecycleEventPublisher orderLifecycleEventPublisher;
 
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = buildAllowedTransitions();
 
@@ -62,8 +68,11 @@ public class OrderService {
             AddressService addressService,
             InventoryService inventoryService,
             AuditLogService auditLogService,
+            CommerceMetricsService commerceMetricsService,
             AppProperties appProperties,
-            OrderNumberGenerator orderNumberGenerator) {
+            OrderNumberGenerator orderNumberGenerator,
+            OrderLifecycleEventFactory orderLifecycleEventFactory,
+            OrderLifecycleEventPublisher orderLifecycleEventPublisher) {
         this.customerOrderRepository = customerOrderRepository;
         this.productRepository = productRepository;
         this.userAccountRepository = userAccountRepository;
@@ -72,8 +81,11 @@ public class OrderService {
         this.addressService = addressService;
         this.inventoryService = inventoryService;
         this.auditLogService = auditLogService;
+        this.commerceMetricsService = commerceMetricsService;
         this.appProperties = appProperties;
         this.orderNumberGenerator = orderNumberGenerator;
+        this.orderLifecycleEventFactory = orderLifecycleEventFactory;
+        this.orderLifecycleEventPublisher = orderLifecycleEventPublisher;
     }
 
     @Transactional
@@ -158,8 +170,18 @@ public class OrderService {
                         "status", savedOrder.getStatus().name(),
                         "itemCount", savedOrder.getItems().size(),
                         "totalAmount", savedOrder.getTotalAmount()));
+        commerceMetricsService.incrementOrderCreated();
         cartService.clearCart(userId);
         productService.evictProductCaches(touchedProductIds);
+        orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                OrderEventType.ORDER_CREATED,
+                savedOrder,
+                "customer-checkout",
+                userAccount.getUsername(),
+                Map.of(
+                        "itemCount", savedOrder.getItems().size(),
+                        "totalAmount", savedOrder.getTotalAmount(),
+                        "addressSelected", savedOrder.getShippingReceiverName() != null)));
 
         return toOrderResponse(savedOrder);
     }
@@ -257,6 +279,16 @@ public class OrderService {
                         "fromStatus", currentStatus.name(),
                         "toStatus", targetStatus.name(),
                         "note", normalizedNote == null ? "" : normalizedNote));
+        commerceMetricsService.incrementOrderStatusTransition(currentStatus, targetStatus);
+        orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                OrderEventType.ORDER_STATUS_CHANGED,
+                savedOrder,
+                "admin-order-status",
+                actorUsername,
+                Map.of(
+                        "fromStatus", currentStatus.name(),
+                        "toStatus", targetStatus.name(),
+                        "note", normalizedNote == null ? "" : normalizedNote)));
 
         return toOrderResponse(savedOrder);
     }

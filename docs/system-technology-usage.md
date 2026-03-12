@@ -19,6 +19,9 @@ The solution includes:
 - React frontend
 - MySQL relational persistence
 - Redis operational state storage
+- Kafka asynchronous event transport
+- Prometheus metrics collection
+- Grafana dashboard visualization
 - Docker-based local deployment
 
 ## 3. Backend Technologies and Usage
@@ -133,7 +136,7 @@ Used for:
 Applied in this project:
 
 - migration scripts are stored under `src/main/resources/db/migration`
-- schema evolves through versioned migrations `V1` to `V6`
+- schema evolves through versioned migrations `V1` to `V8`
 - local and Docker startup both run Flyway automatically
 
 Current migration themes:
@@ -144,6 +147,8 @@ Current migration themes:
 - `V4` address book and order notes
 - `V5` refunds and search indexes
 - `V6` order tags and support tickets
+- `V7` Kafka event receipts
+- `V8` Stripe payment provider support
 
 ### 3.9 Redis
 
@@ -180,7 +185,50 @@ Applied in this project:
 - Swagger UI is exposed at runtime
 - authenticated APIs can be tested by pasting a Bearer token into the Swagger authorization modal
 
-### 3.11 Spring Boot Actuator
+### 3.11 Spring for Apache Kafka
+
+Used for:
+
+- asynchronous order lifecycle event publication
+- decoupled event receipt persistence
+
+Applied in this project:
+
+- order, payment, shipment, and refund flows publish lifecycle events to Kafka
+- a dedicated consumer group stores event receipt records in MySQL for operational traceability
+- Docker Compose provisions the Kafka broker used by the local stack
+
+### 3.12 Micrometer, Prometheus, and Grafana
+
+Used for:
+
+- application metrics collection
+- scrape-based observability
+- dashboard visualization
+
+Applied in this project:
+
+- Micrometer publishes business counters and Spring Kafka metrics
+- Prometheus scrapes `/actuator/prometheus`
+- Grafana auto-provisions a Prometheus datasource and an operations dashboard
+- the dashboard surfaces order throughput, Kafka event volume, payment callbacks, refunds, and shipment activity
+
+### 3.13 Stripe Java SDK
+
+Used for:
+
+- real sandbox payment-provider integration in test mode
+- PaymentIntent creation
+- webhook signature verification
+
+Applied in this project:
+
+- `providerCode=STRIPE` routes payment initiation into Stripe test mode
+- Stripe PaymentIntents carry internal transaction metadata for reconciliation
+- the webhook endpoint verifies `Stripe-Signature` before mapping supported Stripe events back into the internal payment workflow
+- test-mode immediate confirmation can use provider tokens such as `pm_card_visa`
+
+### 3.14 Spring Boot Actuator
 
 Used for:
 
@@ -322,7 +370,7 @@ Used for:
 
 Applied in this project:
 
-- Compose starts MySQL, Redis, backend, and frontend together
+- Compose starts MySQL, Redis, Kafka, backend, frontend, Prometheus, and Grafana together
 - service health and dependency ordering support realistic local startup
 - full-stack smoke validation is executed against the Compose runtime
 
@@ -359,13 +407,15 @@ Applied in this project:
 | Cart | Redis, Spring services, React | Redis hash per user, real-time cart totals, checkout preparation |
 | Address book | Spring MVC, JPA, MySQL, React forms | persistent customer addresses, default selection, order snapshot source |
 | Order placement | JPA, MySQL, Redis, service-layer transactions | cart-to-order conversion with stock validation and address snapshot |
-| Payments | Spring MVC, JPA, MySQL | simulated payment transaction creation and callback settlement |
+| Payments | Spring MVC, JPA, MySQL, Stripe Java SDK | simulated payment fallback plus Stripe test-mode PaymentIntent creation and webhook settlement |
 | Shipments | Spring MVC, JPA, MySQL | shipment record creation, delivery status updates, customer shipment visibility |
 | Refunds | Spring MVC, JPA, MySQL | refund request, admin review, callback-based settlement |
 | Support tickets | Spring MVC, JPA, MySQL, React admin views | customer service intake and admin queue handling |
 | Admin dashboard | JPA queries, DTO aggregation, React admin UI | operational summary metrics and low-stock watchlist |
 | API documentation | springdoc OpenAPI, Swagger UI | runtime contract discovery and manual API testing |
 | Runtime readiness | Actuator, Docker Compose | health checks and startup validation |
+| Async order events | Spring Kafka, Kafka, MySQL | publish domain events and persist consumer receipts |
+| Observability | Micrometer, Prometheus, Grafana | export counters and visualize platform health |
 
 ## 7. Testing and Verification Approach
 
@@ -380,7 +430,7 @@ Used technologies:
 Current usage:
 
 - service and workflow tests validate order, refund, support, inventory, and security behavior
-- current verified backend test count: `35`
+- current verified backend test count: `39`
 
 ### 7.2 Frontend Verification
 
@@ -407,6 +457,14 @@ Sample verified result from March 12, 2026:
 - final order status: `REFUNDED`
 - support ticket status: `IN_PROGRESS`
 - shipment status: `DELIVERED`
+
+Additional Stripe sandbox verification:
+
+- order number: `ORD-20260312235017910-5624`
+- transaction ref: `PAY-20260312235018153-3279`
+- Stripe PaymentIntent: `pi_3TAIzl6sJR5QEaTk02ucuzsY`
+- Stripe provider status: `succeeded`
+- platform order status after payment: `PAID`
 
 ## 8. Current Technology Decisions and Rationale
 
@@ -447,11 +505,10 @@ Chosen because:
 The following technologies are reasonable next steps if the system continues toward production-grade enterprise maturity:
 
 - Testcontainers for stronger integration testing
-- Prometheus and Grafana for metrics visualization
 - OpenTelemetry for tracing
-- message queue integration for asynchronous workflows
 - CI/CD pipeline automation
-- external payment and carrier sandbox integrations
+- carrier sandbox integrations
+- Stripe sandbox credential automation and refund automation
 
 ## 10. Closing Statement
 

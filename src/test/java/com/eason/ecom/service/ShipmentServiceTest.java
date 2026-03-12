@@ -23,6 +23,8 @@ import com.eason.ecom.entity.Shipment;
 import com.eason.ecom.entity.ShipmentStatus;
 import com.eason.ecom.entity.UserAccount;
 import com.eason.ecom.entity.UserRole;
+import com.eason.ecom.messaging.OrderLifecycleEventFactory;
+import com.eason.ecom.messaging.OrderLifecycleEventPublisher;
 import com.eason.ecom.repository.CustomerOrderRepository;
 import com.eason.ecom.repository.ShipmentRepository;
 import com.eason.ecom.support.ShipmentNumberGenerator;
@@ -43,7 +45,16 @@ class ShipmentServiceTest {
     private AuditLogService auditLogService;
 
     @Mock
+    private CommerceMetricsService commerceMetricsService;
+
+    @Mock
     private ShipmentNumberGenerator shipmentNumberGenerator;
+
+    @Mock
+    private OrderLifecycleEventFactory orderLifecycleEventFactory;
+
+    @Mock
+    private OrderLifecycleEventPublisher orderLifecycleEventPublisher;
 
     private ShipmentService shipmentService;
 
@@ -54,7 +65,10 @@ class ShipmentServiceTest {
                 customerOrderRepository,
                 orderService,
                 auditLogService,
-                shipmentNumberGenerator);
+                commerceMetricsService,
+                shipmentNumberGenerator,
+                orderLifecycleEventFactory,
+                orderLifecycleEventPublisher);
     }
 
     @Test

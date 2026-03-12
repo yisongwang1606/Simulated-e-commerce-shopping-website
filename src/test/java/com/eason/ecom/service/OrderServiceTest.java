@@ -38,6 +38,8 @@ import com.eason.ecom.entity.Product;
 import com.eason.ecom.entity.UserAccount;
 import com.eason.ecom.entity.UserRole;
 import com.eason.ecom.exception.BadRequestException;
+import com.eason.ecom.messaging.OrderLifecycleEventFactory;
+import com.eason.ecom.messaging.OrderLifecycleEventPublisher;
 import com.eason.ecom.repository.CustomerOrderRepository;
 import com.eason.ecom.repository.ProductRepository;
 import com.eason.ecom.repository.UserAccountRepository;
@@ -71,7 +73,16 @@ class OrderServiceTest {
     private AuditLogService auditLogService;
 
     @Mock
+    private CommerceMetricsService commerceMetricsService;
+
+    @Mock
     private OrderNumberGenerator orderNumberGenerator;
+
+    @Mock
+    private OrderLifecycleEventFactory orderLifecycleEventFactory;
+
+    @Mock
+    private OrderLifecycleEventPublisher orderLifecycleEventPublisher;
 
     private OrderService orderService;
 
@@ -87,8 +98,11 @@ class OrderServiceTest {
                 addressService,
                 inventoryService,
                 auditLogService,
+                commerceMetricsService,
                 appProperties,
-                orderNumberGenerator);
+                orderNumberGenerator,
+                orderLifecycleEventFactory,
+                orderLifecycleEventPublisher);
     }
 
     @Test

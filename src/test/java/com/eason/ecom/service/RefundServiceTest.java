@@ -32,6 +32,8 @@ import com.eason.ecom.entity.RefundStatus;
 import com.eason.ecom.entity.UserAccount;
 import com.eason.ecom.entity.UserRole;
 import com.eason.ecom.exception.BadRequestException;
+import com.eason.ecom.messaging.OrderLifecycleEventFactory;
+import com.eason.ecom.messaging.OrderLifecycleEventPublisher;
 import com.eason.ecom.repository.CustomerOrderRepository;
 import com.eason.ecom.repository.RefundRequestRepository;
 
@@ -50,6 +52,15 @@ class RefundServiceTest {
     @Mock
     private AuditLogService auditLogService;
 
+    @Mock
+    private CommerceMetricsService commerceMetricsService;
+
+    @Mock
+    private OrderLifecycleEventFactory orderLifecycleEventFactory;
+
+    @Mock
+    private OrderLifecycleEventPublisher orderLifecycleEventPublisher;
+
     private RefundService refundService;
 
     @BeforeEach
@@ -58,7 +69,10 @@ class RefundServiceTest {
                 refundRequestRepository,
                 customerOrderRepository,
                 orderService,
-                auditLogService);
+                auditLogService,
+                commerceMetricsService,
+                orderLifecycleEventFactory,
+                orderLifecycleEventPublisher);
     }
 
     @Test

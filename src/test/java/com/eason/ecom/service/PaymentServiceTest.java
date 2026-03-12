@@ -27,6 +27,10 @@ import com.eason.ecom.entity.PaymentStatus;
 import com.eason.ecom.entity.PaymentTransaction;
 import com.eason.ecom.entity.UserAccount;
 import com.eason.ecom.entity.UserRole;
+import com.eason.ecom.integration.stripe.StripePaymentGateway;
+import com.eason.ecom.integration.stripe.StripePaymentIntentResult;
+import com.eason.ecom.messaging.OrderLifecycleEventFactory;
+import com.eason.ecom.messaging.OrderLifecycleEventPublisher;
 import com.eason.ecom.repository.CustomerOrderRepository;
 import com.eason.ecom.repository.PaymentTransactionRepository;
 import com.eason.ecom.support.PaymentReferenceGenerator;
@@ -50,7 +54,19 @@ class PaymentServiceTest {
     private AuditLogService auditLogService;
 
     @Mock
+    private CommerceMetricsService commerceMetricsService;
+
+    @Mock
     private PaymentReferenceGenerator paymentReferenceGenerator;
+
+    @Mock
+    private OrderLifecycleEventFactory orderLifecycleEventFactory;
+
+    @Mock
+    private OrderLifecycleEventPublisher orderLifecycleEventPublisher;
+
+    @Mock
+    private StripePaymentGateway stripePaymentGateway;
 
     private PaymentService paymentService;
 
@@ -62,7 +78,11 @@ class PaymentServiceTest {
                 orderService,
                 refundService,
                 auditLogService,
-                paymentReferenceGenerator);
+                commerceMetricsService,
+                paymentReferenceGenerator,
+                orderLifecycleEventFactory,
+                orderLifecycleEventPublisher,
+                stripePaymentGateway);
     }
 
     @Test
@@ -81,7 +101,14 @@ class PaymentServiceTest {
 
         PaymentTransactionResponse response = paymentService.initiatePayment(
                 55L,
-                new PaymentInitiationRequest("CARD", BigDecimal.valueOf(129.99), "SIMULATED_GATEWAY", "Checkout payment"),
+                new PaymentInitiationRequest(
+                        "CARD",
+                        BigDecimal.valueOf(129.99),
+                        "SIMULATED_GATEWAY",
+                        null,
+                        null,
+                        null,
+                        "Checkout payment"),
                 1L,
                 "admin");
 
@@ -120,6 +147,46 @@ class PaymentServiceTest {
                 "Payment callback confirmed settlement",
                 null,
                 "payment-callback");
+    }
+
+    @Test
+    void initiateStripePaymentReturnsProviderReferenceAndClientSecret() {
+        CustomerOrder customerOrder = buildOrder(55L, OrderStatus.CREATED);
+        when(customerOrderRepository.findWithDetailsById(55L)).thenReturn(Optional.of(customerOrder));
+        when(paymentTransactionRepository.existsByOrderIdAndPaymentStatus(55L, PaymentStatus.SUCCEEDED)).thenReturn(false);
+        when(paymentReferenceGenerator.next()).thenReturn("PAY-20260312150000000-2222");
+        when(stripePaymentGateway.createPaymentIntent(any(CustomerOrder.class), any(PaymentTransaction.class), any(PaymentInitiationRequest.class)))
+                .thenReturn(new StripePaymentIntentResult(
+                        "pi_test_123",
+                        "pi_test_123_secret_456",
+                        "PENDING",
+                        "Stripe PaymentIntent status: requires_payment_method"));
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenAnswer(invocation -> {
+            PaymentTransaction paymentTransaction = invocation.getArgument(0);
+            paymentTransaction.setId(11L);
+            paymentTransaction.setCreatedAt(LocalDateTime.of(2026, 3, 12, 15, 5));
+            paymentTransaction.setUpdatedAt(LocalDateTime.of(2026, 3, 12, 15, 5));
+            return paymentTransaction;
+        });
+
+        PaymentTransactionResponse response = paymentService.initiatePayment(
+                55L,
+                new PaymentInitiationRequest(
+                        "CARD",
+                        BigDecimal.valueOf(129.99),
+                        "STRIPE",
+                        "cad",
+                        "pm_card_visa",
+                        false,
+                        "Stripe test mode"),
+                1L,
+                "admin");
+
+        assertEquals("STRIPE", response.providerCode());
+        assertEquals("pi_test_123", response.providerReference());
+        assertEquals("pi_test_123_secret_456", response.clientSecret());
+        assertEquals("PENDING", response.paymentStatus());
+        verify(stripePaymentGateway).createPaymentIntent(any(CustomerOrder.class), any(PaymentTransaction.class), any(PaymentInitiationRequest.class));
     }
 
     @Test

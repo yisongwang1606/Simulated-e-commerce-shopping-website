@@ -13,7 +13,9 @@ public class AppProperties {
     private final Order order = new Order();
     private final Seed seed = new Seed();
     private final Redis redis = new Redis();
+    private final Kafka kafka = new Kafka();
     private final Integrations integrations = new Integrations();
+    private final Stripe stripe = new Stripe();
 
     public Jwt getJwt() {
         return jwt;
@@ -31,8 +33,16 @@ public class AppProperties {
         return redis;
     }
 
+    public Kafka getKafka() {
+        return kafka;
+    }
+
     public Integrations getIntegrations() {
         return integrations;
+    }
+
+    public Stripe getStripe() {
+        return stripe;
     }
 
     public static class Jwt {
@@ -146,6 +156,93 @@ public class AppProperties {
 
         public void setPaymentCallbackToken(String paymentCallbackToken) {
             this.paymentCallbackToken = paymentCallbackToken;
+        }
+    }
+
+    public static class Kafka {
+        private String orderTopic = "ecom.order.lifecycle.v1";
+        private String consumerGroup = "ecom-order-events";
+        private int topicPartitions = 3;
+        private short topicReplicas = 1;
+
+        public String getOrderTopic() {
+            return orderTopic;
+        }
+
+        public void setOrderTopic(String orderTopic) {
+            this.orderTopic = orderTopic;
+        }
+
+        public String getConsumerGroup() {
+            return consumerGroup;
+        }
+
+        public void setConsumerGroup(String consumerGroup) {
+            this.consumerGroup = consumerGroup;
+        }
+
+        public int getTopicPartitions() {
+            return topicPartitions;
+        }
+
+        public void setTopicPartitions(int topicPartitions) {
+            this.topicPartitions = topicPartitions;
+        }
+
+        public short getTopicReplicas() {
+            return topicReplicas;
+        }
+
+        public void setTopicReplicas(short topicReplicas) {
+            this.topicReplicas = topicReplicas;
+        }
+    }
+
+    public static class Stripe {
+        private boolean enabled;
+        private String secretKey;
+        private String webhookSecret;
+        private String currency = "cad";
+        private String defaultTestPaymentMethod = "pm_card_visa";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getSecretKey() {
+            return secretKey;
+        }
+
+        public void setSecretKey(String secretKey) {
+            this.secretKey = secretKey;
+        }
+
+        public String getWebhookSecret() {
+            return webhookSecret;
+        }
+
+        public void setWebhookSecret(String webhookSecret) {
+            this.webhookSecret = webhookSecret;
+        }
+
+        public String getCurrency() {
+            return currency;
+        }
+
+        public void setCurrency(String currency) {
+            this.currency = currency;
+        }
+
+        public String getDefaultTestPaymentMethod() {
+            return defaultTestPaymentMethod;
+        }
+
+        public void setDefaultTestPaymentMethod(String defaultTestPaymentMethod) {
+            this.defaultTestPaymentMethod = defaultTestPaymentMethod;
         }
     }
 }

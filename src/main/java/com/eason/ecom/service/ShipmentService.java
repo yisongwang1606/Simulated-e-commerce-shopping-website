@@ -16,6 +16,9 @@ import com.eason.ecom.entity.Shipment;
 import com.eason.ecom.entity.ShipmentStatus;
 import com.eason.ecom.exception.BadRequestException;
 import com.eason.ecom.exception.ResourceNotFoundException;
+import com.eason.ecom.messaging.OrderEventType;
+import com.eason.ecom.messaging.OrderLifecycleEventFactory;
+import com.eason.ecom.messaging.OrderLifecycleEventPublisher;
 import com.eason.ecom.repository.CustomerOrderRepository;
 import com.eason.ecom.repository.ShipmentRepository;
 import com.eason.ecom.support.ShipmentNumberGenerator;
@@ -27,19 +30,28 @@ public class ShipmentService {
     private final CustomerOrderRepository customerOrderRepository;
     private final OrderService orderService;
     private final AuditLogService auditLogService;
+    private final CommerceMetricsService commerceMetricsService;
     private final ShipmentNumberGenerator shipmentNumberGenerator;
+    private final OrderLifecycleEventFactory orderLifecycleEventFactory;
+    private final OrderLifecycleEventPublisher orderLifecycleEventPublisher;
 
     public ShipmentService(
             ShipmentRepository shipmentRepository,
             CustomerOrderRepository customerOrderRepository,
             OrderService orderService,
             AuditLogService auditLogService,
-            ShipmentNumberGenerator shipmentNumberGenerator) {
+            CommerceMetricsService commerceMetricsService,
+            ShipmentNumberGenerator shipmentNumberGenerator,
+            OrderLifecycleEventFactory orderLifecycleEventFactory,
+            OrderLifecycleEventPublisher orderLifecycleEventPublisher) {
         this.shipmentRepository = shipmentRepository;
         this.customerOrderRepository = customerOrderRepository;
         this.orderService = orderService;
         this.auditLogService = auditLogService;
+        this.commerceMetricsService = commerceMetricsService;
         this.shipmentNumberGenerator = shipmentNumberGenerator;
+        this.orderLifecycleEventFactory = orderLifecycleEventFactory;
+        this.orderLifecycleEventPublisher = orderLifecycleEventPublisher;
     }
 
     @Transactional
@@ -92,6 +104,17 @@ public class ShipmentService {
                         "shipmentNo", savedShipment.getShipmentNo(),
                         "carrierCode", savedShipment.getCarrierCode(),
                         "trackingNo", savedShipment.getTrackingNo()));
+        commerceMetricsService.incrementShipmentCreated(savedShipment.getCarrierCode());
+        orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                OrderEventType.SHIPMENT_CREATED,
+                customerOrder,
+                "admin-shipment",
+                actorUsername,
+                Map.of(
+                        "shipmentId", savedShipment.getId(),
+                        "shipmentNo", savedShipment.getShipmentNo(),
+                        "carrierCode", savedShipment.getCarrierCode(),
+                        "trackingNo", savedShipment.getTrackingNo())));
 
         return toResponse(savedShipment);
     }
@@ -133,6 +156,17 @@ public class ShipmentService {
                         "shipmentId", savedShipment.getId(),
                         "shipmentNo", savedShipment.getShipmentNo(),
                         "trackingNo", savedShipment.getTrackingNo()));
+        commerceMetricsService.incrementShipmentDelivered();
+        orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                OrderEventType.SHIPMENT_DELIVERED,
+                shipment.getOrder(),
+                "admin-shipment",
+                actorUsername,
+                Map.of(
+                        "shipmentId", savedShipment.getId(),
+                        "shipmentNo", savedShipment.getShipmentNo(),
+                        "trackingNo", savedShipment.getTrackingNo(),
+                        "shipmentStatus", savedShipment.getShipmentStatus().name())));
 
         return toResponse(savedShipment);
     }

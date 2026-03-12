@@ -24,6 +24,9 @@ import com.eason.ecom.entity.RefundRequest;
 import com.eason.ecom.entity.RefundStatus;
 import com.eason.ecom.exception.BadRequestException;
 import com.eason.ecom.exception.ResourceNotFoundException;
+import com.eason.ecom.messaging.OrderEventType;
+import com.eason.ecom.messaging.OrderLifecycleEventFactory;
+import com.eason.ecom.messaging.OrderLifecycleEventPublisher;
 import com.eason.ecom.repository.CustomerOrderRepository;
 import com.eason.ecom.repository.RefundRequestRepository;
 
@@ -34,16 +37,25 @@ public class RefundService {
     private final CustomerOrderRepository customerOrderRepository;
     private final OrderService orderService;
     private final AuditLogService auditLogService;
+    private final CommerceMetricsService commerceMetricsService;
+    private final OrderLifecycleEventFactory orderLifecycleEventFactory;
+    private final OrderLifecycleEventPublisher orderLifecycleEventPublisher;
 
     public RefundService(
             RefundRequestRepository refundRequestRepository,
             CustomerOrderRepository customerOrderRepository,
             OrderService orderService,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            CommerceMetricsService commerceMetricsService,
+            OrderLifecycleEventFactory orderLifecycleEventFactory,
+            OrderLifecycleEventPublisher orderLifecycleEventPublisher) {
         this.refundRequestRepository = refundRequestRepository;
         this.customerOrderRepository = customerOrderRepository;
         this.orderService = orderService;
         this.auditLogService = auditLogService;
+        this.commerceMetricsService = commerceMetricsService;
+        this.orderLifecycleEventFactory = orderLifecycleEventFactory;
+        this.orderLifecycleEventPublisher = orderLifecycleEventPublisher;
     }
 
     @Transactional
@@ -79,6 +91,16 @@ public class RefundService {
                 Map.of(
                         "refundRequestId", savedRequest.getId(),
                         "reasonPreview", truncate(savedRequest.getReason())));
+        commerceMetricsService.incrementRefundRequested();
+        orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                OrderEventType.REFUND_REQUEST_CREATED,
+                customerOrder,
+                "customer-refund-request",
+                username,
+                Map.of(
+                        "refundRequestId", savedRequest.getId(),
+                        "refundStatus", savedRequest.getRefundStatus().name(),
+                        "reasonPreview", truncate(savedRequest.getReason()))));
 
         return toResponse(savedRequest);
     }
@@ -208,6 +230,16 @@ public class RefundService {
                         "refundRequestId", savedRequest.getId(),
                         "decision", savedRequest.getRefundStatus().name(),
                         "reviewNote", savedRequest.getReviewNote() == null ? "" : savedRequest.getReviewNote()));
+        commerceMetricsService.incrementRefundReviewed(savedRequest.getRefundStatus().name());
+        orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                OrderEventType.REFUND_REQUEST_REVIEWED,
+                refundRequest.getOrder(),
+                "admin-refund-review",
+                actorUsername,
+                Map.of(
+                        "refundRequestId", savedRequest.getId(),
+                        "decision", savedRequest.getRefundStatus().name(),
+                        "reviewNote", savedRequest.getReviewNote() == null ? "" : savedRequest.getReviewNote())));
 
         return toResponse(savedRequest);
     }
@@ -229,6 +261,15 @@ public class RefundService {
                             customerOrder.getOrderNo(),
                             "Refund settled for order " + customerOrder.getOrderNo(),
                             Map.of("refundRequestId", refundRequest.getId()));
+                    commerceMetricsService.incrementRefundSettled();
+                    orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                            OrderEventType.REFUND_SETTLED,
+                            customerOrder,
+                            "payment-callback",
+                            "payment-callback",
+                            Map.of(
+                                    "refundRequestId", refundRequest.getId(),
+                                    "refundStatus", refundRequest.getRefundStatus().name())));
                 });
     }
 

@@ -12,8 +12,11 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 
 - Backend enterprise baseline is implemented and verified locally.
 - Swagger / OpenAPI is enabled.
-- Flyway database migrations are enabled and currently validated through `V6`.
+- Flyway database migrations are enabled and currently validated through `V8`.
 - The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, support ticket intake, order tagging, admin order/refund/service-desk review surfaces, and a redesigned admin operations overview.
+- Kafka-backed asynchronous order event capture is enabled.
+- Prometheus and Grafana are included in the local deployment stack.
+- Stripe test-mode payment provider support is implemented for PaymentIntent creation and webhook intake.
 - Local deployment baseline is now included with Dockerfiles, `docker-compose.yml`, environment-variable-driven configuration, and Actuator health probes.
 
 ## Core Capabilities
@@ -27,6 +30,7 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Inventory adjustment records and order-linked stock movement audit
 - Audit log query for operational investigation
 - Simulated payment initiation and payment callback processing
+- Stripe test-mode PaymentIntent initiation with webhook verification support
 - Shipment creation, delivery confirmation, and order completion flow
 - Customer address book with default address handling
 - Order shipping address snapshot at checkout time
@@ -38,6 +42,8 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Operational order tags for triage and exception handling
 - Refund summary metrics for the admin dashboard
 - Admin operations summary endpoint for order pressure, support workload, catalog readiness, and low-stock watchlists
+- Kafka order lifecycle event publication and asynchronous receipt storage
+- Prometheus metrics endpoint and Grafana operations dashboard
 - Frontend admin dashboard with queue metrics, low-stock watchlists, order search filters, order tagging, refund review, and support ticket actions
 - Refined React shell with a more production-like storefront, catalog, and admin visual hierarchy
 - Swagger-documented admin endpoints for catalog, orders, inventory, payments, shipments, refunds, and audit logs
@@ -52,6 +58,10 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - MySQL 8.4
 - Redis-compatible server  
   Tested locally with Memurai on port `6379`
+- Apache Kafka 4.2
+- Prometheus
+- Grafana
+- Stripe Java SDK for test-mode payment provider integration
 - springdoc OpenAPI / Swagger UI
 - React 19 + Vite 7 + TypeScript
 - Docker / Docker Compose ready configuration
@@ -64,6 +74,9 @@ Tested local defaults:
 - MySQL: `127.0.0.1:3306`
 - Database: `ecom_enterprise`
 - Redis: `127.0.0.1:6379`
+- Kafka (Docker): `127.0.0.1:29092`
+- Prometheus (Docker): `http://127.0.0.1:9090`
+- Grafana (Docker): `http://127.0.0.1:3000`
 
 Key config files:
 
@@ -79,6 +92,8 @@ Important local defaults:
 - MySQL password: `ok`
 - Redis password: `ok`
 - Payment callback token: `local-payment-callback-token`
+- Stripe provider default currency: `cad`
+- Stripe test payment method fallback: `pm_card_visa`
 - Vite dev proxy target: `http://127.0.0.1:8080`
 
 ## Run The Backend
@@ -147,6 +162,8 @@ Expected service entry points:
 - Backend API: `http://127.0.0.1:8080`
 - Swagger: `http://127.0.0.1:8080/swagger-ui.html`
 - Health: `http://127.0.0.1:8080/actuator/health/readiness`
+- Prometheus: `http://127.0.0.1:9090`
+- Grafana: `http://127.0.0.1:3000`
 
 ## Swagger
 
@@ -225,6 +242,7 @@ Orders and Customer Order Services:
 Payments:
 
 - `POST /api/payments/callback`
+- `POST /api/payments/stripe/webhook`
 
 Admin:
 
@@ -272,6 +290,8 @@ Implemented and verified:
   - placeholder payment transactions
   - callback token validation
   - idempotent repeated callback handling
+  - Stripe test-mode PaymentIntent creation through `providerCode=STRIPE`
+  - Stripe webhook verification through `Stripe-Signature`
 - Shipment:
   - shipment number generation
   - tracking data capture
@@ -327,9 +347,12 @@ Latest backend verification:
 
 Latest verified results:
 
-- 35 backend tests passed
-- Flyway migrations applied through `V6`
+- 39 backend tests passed
+- Flyway migrations applied through `V8`
 - Actuator readiness endpoint returned `UP`
+- Prometheus target scrape returned `UP`
+- Grafana provisioning loaded the enterprise dashboard
+- Kafka order lifecycle topic was created and consumed successfully
 - Real end-to-end local verification covered:
   - admin dashboard summary endpoint
   - address selection at order creation
@@ -358,9 +381,41 @@ Latest verified results:
 - Orders page now surfaces shipment placeholders, refund requests, and support ticket intake
 - Admin page now surfaces live operations metrics, low-stock watchlists, and filters orders while reviewing refunds and support tickets against live APIs
 
+## Stripe Test Mode
+
+To exercise the Stripe-backed payment path, provide these environment variables:
+
+- `ECOM_STRIPE_ENABLED=true`
+- `ECOM_STRIPE_SECRET_KEY=sk_test_...`
+- `ECOM_STRIPE_WEBHOOK_SECRET=whsec_...` for verified webhook delivery
+
+Example admin payment request:
+
+```json
+{
+  "paymentMethod": "CARD",
+  "amount": 129.99,
+  "providerCode": "STRIPE",
+  "currency": "cad",
+  "providerPaymentMethodToken": "pm_card_visa",
+  "confirmImmediately": true,
+  "note": "Stripe test mode payment"
+}
+```
+
+This path will create a Stripe PaymentIntent in test mode. If the request is confirmed immediately with `pm_card_visa`, the platform will mark the payment as settled without waiting for a separate callback. Webhook support remains available for later asynchronous events.
+
+Latest verified Stripe sandbox sample:
+
+- Order: `ORD-20260312235017910-5624`
+- Transaction ref: `PAY-20260312235018153-3279`
+- PaymentIntent: `pi_3TAIzl6sJR5QEaTk02ucuzsY`
+- Stripe status: `succeeded`
+- Platform order status after payment: `PAID`
+
 ## Notes
 
-- Payment, shipment, and refund integrations are still simulated integration points, not production third-party gateway connections.
+- Shipment and refund integrations are still platform-managed placeholders, not production carrier or PSP refund connections.
 - This project is currently implemented as a modular monolith, which is intentional for this phase.
-- Dockerfiles and Compose configuration are included, but Docker CLI was not available on this machine during this verification pass, so the YAML and container build flow were prepared but not executed here.
-- The frontend is now aligned with the core enterprise APIs, but deeper production concerns such as CI/CD, external gateway integration, and full observability stacks still remain for later phases.
+- Docker Compose has been exercised with MySQL, Redis, Kafka, backend, frontend, Prometheus, and Grafana.
+- A live Stripe sandbox call still requires a project-specific `sk_test_...` key and, for webhook verification, a matching `whsec_...` secret.

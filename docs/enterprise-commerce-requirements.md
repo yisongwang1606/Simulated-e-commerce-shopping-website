@@ -28,6 +28,8 @@ The current system is implemented as a modular monolith with:
 - Redis-backed cart and token state
 - MySQL-based business persistence
 - payment, shipment, refund, support, and audit workflows
+- Kafka-backed asynchronous order event processing
+- Prometheus and Grafana observability baseline
 - Swagger/OpenAPI documentation
 - Docker-based local deployment
 - Actuator health endpoints for operational readiness
@@ -99,7 +101,9 @@ The shared backend platform currently includes:
 - role-based access control
 - MySQL persistence
 - Redis-backed token state, cart state, and product ranking state
-- Flyway schema migrations through `V6`
+- Flyway schema migrations through `V8`
+- Kafka order lifecycle topic and asynchronous receipt persistence
+- Prometheus metrics exposure and Grafana dashboard provisioning
 - Swagger/OpenAPI exposure
 - Actuator health checks
 - Docker Compose deployment baseline
@@ -212,12 +216,14 @@ Current order data retained:
 
 ### 6.6 Payment Workflow
 
-Current phase uses simulated payment integration rather than a real payment provider.
+Current phase supports both the existing simulated gateway flow and a Stripe test-mode provider path.
 
 Implemented behavior:
 
 - admin can create a payment transaction
 - callback endpoint validates a callback token
+- Stripe-backed PaymentIntent creation is available through `providerCode=STRIPE`
+- Stripe webhook endpoint validates `Stripe-Signature` and maps supported events into the internal payment workflow
 - successful payment callback advances the order payment flow
 - refund callback settles the refund flow
 - duplicate callbacks are processed idempotently
@@ -342,6 +348,7 @@ The current implementation includes at least the following entities:
 ### 8.3 Shared Integration API
 
 - `POST /api/payments/callback`
+- `POST /api/payments/stripe/webhook`
 
 ### 8.4 Admin APIs
 
@@ -388,6 +395,7 @@ The current implementation includes at least the following entities:
 - Local full-stack container orchestration is supported through Docker Compose.
 - Frontend container is served through nginx.
 - Backend exposes readiness and liveness endpoints through Actuator.
+- Kafka, Prometheus, and Grafana are included in the containerized local stack.
 
 ### 9.3 Documentation Baseline
 
@@ -407,11 +415,14 @@ The current implementation is expected to pass:
 
 The following validation evidence has already been recorded for the current implementation:
 
-- backend automated tests passed: `35`
+- backend automated tests passed: `39`
 - frontend `npm run lint` passed
 - frontend `npm run build` passed
 - Docker Compose runtime came up successfully
 - readiness endpoint returned `UP`
+- Prometheus targets returned `UP`
+- Grafana dashboard provisioning completed successfully
+- real Stripe sandbox PaymentIntent creation succeeded with platform reconciliation back to `PAID`
 - real smoke flow executed successfully on March 12, 2026
 
 ### 10.1 Real Smoke Flow Summary
@@ -440,16 +451,22 @@ Reference validation sample:
 - payment status: `REFUNDED`
 - shipment status: `DELIVERED`
 
+Additional Stripe sandbox verification:
+
+- order number: `ORD-20260312235017910-5624`
+- transaction ref: `PAY-20260312235018153-3279`
+- provider reference: `pi_3TAIzl6sJR5QEaTk02ucuzsY`
+- provider status: `succeeded`
+- platform order status after payment: `PAID`
+
 ## 11. Known Gaps and Next-Phase Recommendations
 
 The current system is a strong enterprise-style baseline, but still has planned expansion areas:
 
-- real payment provider integration
 - real carrier and fulfillment integration
-- message queue and asynchronous workflow orchestration
 - richer permission model beyond `ADMIN` and `CUSTOMER`
 - operational reporting export
-- observability metrics dashboard integration
+- full Stripe sandbox credential rollout across environments
 - CI/CD pipeline standardization
 
 ## 12. Acceptance Statement

@@ -18,6 +18,12 @@ import com.eason.ecom.entity.PaymentStatus;
 import com.eason.ecom.entity.PaymentTransaction;
 import com.eason.ecom.exception.BadRequestException;
 import com.eason.ecom.exception.ResourceNotFoundException;
+import com.eason.ecom.integration.stripe.StripePaymentGateway;
+import com.eason.ecom.integration.stripe.StripePaymentIntentResult;
+import com.eason.ecom.integration.stripe.StripeWebhookResult;
+import com.eason.ecom.messaging.OrderEventType;
+import com.eason.ecom.messaging.OrderLifecycleEventFactory;
+import com.eason.ecom.messaging.OrderLifecycleEventPublisher;
 import com.eason.ecom.repository.CustomerOrderRepository;
 import com.eason.ecom.repository.PaymentTransactionRepository;
 import com.eason.ecom.support.PaymentReferenceGenerator;
@@ -30,7 +36,11 @@ public class PaymentService {
     private final OrderService orderService;
     private final RefundService refundService;
     private final AuditLogService auditLogService;
+    private final CommerceMetricsService commerceMetricsService;
     private final PaymentReferenceGenerator paymentReferenceGenerator;
+    private final OrderLifecycleEventFactory orderLifecycleEventFactory;
+    private final OrderLifecycleEventPublisher orderLifecycleEventPublisher;
+    private final StripePaymentGateway stripePaymentGateway;
 
     public PaymentService(
             PaymentTransactionRepository paymentTransactionRepository,
@@ -38,13 +48,21 @@ public class PaymentService {
             OrderService orderService,
             RefundService refundService,
             AuditLogService auditLogService,
-            PaymentReferenceGenerator paymentReferenceGenerator) {
+            CommerceMetricsService commerceMetricsService,
+            PaymentReferenceGenerator paymentReferenceGenerator,
+            OrderLifecycleEventFactory orderLifecycleEventFactory,
+            OrderLifecycleEventPublisher orderLifecycleEventPublisher,
+            StripePaymentGateway stripePaymentGateway) {
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.customerOrderRepository = customerOrderRepository;
         this.orderService = orderService;
         this.refundService = refundService;
         this.auditLogService = auditLogService;
+        this.commerceMetricsService = commerceMetricsService;
         this.paymentReferenceGenerator = paymentReferenceGenerator;
+        this.orderLifecycleEventFactory = orderLifecycleEventFactory;
+        this.orderLifecycleEventPublisher = orderLifecycleEventPublisher;
+        this.stripePaymentGateway = stripePaymentGateway;
     }
 
     @Transactional
@@ -70,14 +88,22 @@ public class PaymentService {
                     actorUsername);
         }
 
+        String providerCode = resolveProviderCode(request.providerCode());
         PaymentTransaction paymentTransaction = new PaymentTransaction();
         paymentTransaction.setOrder(customerOrder);
         paymentTransaction.setPaymentMethod(resolvePaymentMethod(request.paymentMethod()));
         paymentTransaction.setPaymentStatus(PaymentStatus.PENDING);
         paymentTransaction.setTransactionRef(paymentReferenceGenerator.next());
-        paymentTransaction.setProviderCode(resolveProviderCode(request.providerCode()));
+        paymentTransaction.setProviderCode(providerCode);
         paymentTransaction.setAmount(request.amount());
         paymentTransaction.setNote(normalizeOptional(request.note()));
+
+        StripePaymentIntentResult stripePaymentIntentResult = null;
+        if ("STRIPE".equals(providerCode)) {
+            stripePaymentIntentResult = stripePaymentGateway.createPaymentIntent(customerOrder, paymentTransaction, request);
+            paymentTransaction.setProviderReference(stripePaymentIntentResult.providerReference());
+            paymentTransaction.setNote(resolveProviderNote(paymentTransaction.getNote(), stripePaymentIntentResult.note()));
+        }
 
         PaymentTransaction savedTransaction = paymentTransactionRepository.save(paymentTransaction);
         auditLogService.recordUserAction(
@@ -90,10 +116,41 @@ public class PaymentService {
                 Map.of(
                         "paymentId", savedTransaction.getId(),
                         "transactionRef", savedTransaction.getTransactionRef(),
+                        "providerReference", savedTransaction.getProviderReference() == null
+                                ? ""
+                                : savedTransaction.getProviderReference(),
                         "paymentMethod", savedTransaction.getPaymentMethod().name(),
                         "amount", savedTransaction.getAmount()));
+        commerceMetricsService.incrementPaymentInitiated(savedTransaction.getPaymentMethod().name());
+        orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                OrderEventType.PAYMENT_INITIATED,
+                customerOrder,
+                "admin-payment-initiation",
+                actorUsername,
+                Map.of(
+                        "paymentId", savedTransaction.getId(),
+                        "transactionRef", savedTransaction.getTransactionRef(),
+                        "providerReference", savedTransaction.getProviderReference() == null
+                                ? ""
+                                : savedTransaction.getProviderReference(),
+                        "paymentMethod", savedTransaction.getPaymentMethod().name(),
+                        "amount", savedTransaction.getAmount(),
+                        "paymentStatus", savedTransaction.getPaymentStatus().name())));
 
-        return toResponse(savedTransaction);
+        PaymentTransactionResponse response = toResponse(
+                savedTransaction,
+                stripePaymentIntentResult == null ? null : stripePaymentIntentResult.clientSecret());
+        if (stripePaymentIntentResult != null
+                && isTerminalProviderStatus(stripePaymentIntentResult.paymentStatus())) {
+            PaymentTransactionResponse callbackResponse = handleCallback(new PaymentCallbackRequest(
+                    savedTransaction.getTransactionRef(),
+                    stripePaymentIntentResult.paymentStatus(),
+                    stripePaymentIntentResult.providerReference(),
+                    savedTransaction.getProviderCode(),
+                    stripePaymentIntentResult.note()));
+            return withClientSecret(callbackResponse, stripePaymentIntentResult.clientSecret());
+        }
+        return response;
     }
 
     @Transactional
@@ -106,7 +163,7 @@ public class PaymentService {
         String normalizedProviderCode = resolveProviderCode(request.providerCode());
         String normalizedNote = normalizeOptional(request.note());
         if (isIdempotentRepeat(paymentTransaction, targetStatus, normalizedProviderEventId)) {
-            return toResponse(paymentTransaction);
+            return toResponse(paymentTransaction, null);
         }
 
         paymentTransaction.setPaymentStatus(targetStatus);
@@ -135,15 +192,39 @@ public class PaymentService {
                         "paymentId", savedTransaction.getId(),
                         "transactionRef", savedTransaction.getTransactionRef(),
                         "paymentStatus", savedTransaction.getPaymentStatus().name()));
+        commerceMetricsService.incrementPaymentCallback(savedTransaction.getPaymentStatus());
+        orderLifecycleEventPublisher.publish(orderLifecycleEventFactory.create(
+                OrderEventType.PAYMENT_UPDATED,
+                customerOrder,
+                "payment-callback",
+                "payment-callback",
+                Map.of(
+                        "paymentId", savedTransaction.getId(),
+                        "transactionRef", savedTransaction.getTransactionRef(),
+                        "paymentStatus", savedTransaction.getPaymentStatus().name(),
+                        "providerEventId", savedTransaction.getProviderEventId() == null
+                                ? ""
+                                : savedTransaction.getProviderEventId())));
 
-        return toResponse(savedTransaction);
+        return toResponse(savedTransaction, null);
     }
 
     @Transactional(readOnly = true)
     public List<PaymentTransactionResponse> getPaymentsForOrder(Long orderId) {
         return paymentTransactionRepository.findByOrderIdOrderByCreatedAtDesc(orderId).stream()
-                .map(this::toResponse)
+                .map(transaction -> toResponse(transaction, null))
                 .toList();
+    }
+
+    @Transactional
+    public String handleStripeWebhook(String payload, String signatureHeader) {
+        StripeWebhookResult webhookResult = stripePaymentGateway.parseWebhook(payload, signatureHeader);
+        if (!webhookResult.isHandled()) {
+            return "Ignored Stripe event " + webhookResult.eventType();
+        }
+        PaymentTransactionResponse response = handleCallback(webhookResult.callbackRequest());
+        return "Processed Stripe event " + webhookResult.eventType()
+                + " for transaction " + response.transactionRef();
     }
 
     private void validatePaymentCreation(CustomerOrder customerOrder) {
@@ -225,11 +306,29 @@ public class PaymentService {
         return StringUtils.hasText(providerCode) ? providerCode.trim().toUpperCase() : "SIMULATED_GATEWAY";
     }
 
+    private boolean isTerminalProviderStatus(String paymentStatus) {
+        return "SUCCEEDED".equals(paymentStatus)
+                || "FAILED".equals(paymentStatus)
+                || "CANCELLED".equals(paymentStatus);
+    }
+
+    private String resolveProviderNote(String requestedNote, String providerNote) {
+        if (!StringUtils.hasText(providerNote)) {
+            return requestedNote;
+        }
+        if (!StringUtils.hasText(requestedNote)) {
+            return providerNote;
+        }
+        return requestedNote + " | " + providerNote;
+    }
+
     private String normalizeOptional(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
-    private PaymentTransactionResponse toResponse(PaymentTransaction paymentTransaction) {
+    private PaymentTransactionResponse toResponse(
+            PaymentTransaction paymentTransaction,
+            String clientSecret) {
         return new PaymentTransactionResponse(
                 paymentTransaction.getId(),
                 paymentTransaction.getOrder().getId(),
@@ -239,10 +338,36 @@ public class PaymentService {
                 paymentTransaction.getTransactionRef(),
                 paymentTransaction.getProviderCode(),
                 paymentTransaction.getProviderEventId(),
+                paymentTransaction.getProviderReference(),
                 paymentTransaction.getAmount(),
+                clientSecret,
                 paymentTransaction.getNote(),
                 paymentTransaction.getCreatedAt(),
                 paymentTransaction.getPaidAt(),
                 paymentTransaction.getUpdatedAt());
+    }
+
+    private PaymentTransactionResponse withClientSecret(
+            PaymentTransactionResponse response,
+            String clientSecret) {
+        if (!StringUtils.hasText(clientSecret)) {
+            return response;
+        }
+        return new PaymentTransactionResponse(
+                response.id(),
+                response.orderId(),
+                response.orderNo(),
+                response.paymentMethod(),
+                response.paymentStatus(),
+                response.transactionRef(),
+                response.providerCode(),
+                response.providerEventId(),
+                response.providerReference(),
+                response.amount(),
+                clientSecret,
+                response.note(),
+                response.createdAt(),
+                response.paidAt(),
+                response.updatedAt());
     }
 }
