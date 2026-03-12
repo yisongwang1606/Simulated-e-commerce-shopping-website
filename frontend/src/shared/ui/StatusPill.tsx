@@ -4,6 +4,7 @@ interface StatusPillProps {
 
 export function StatusPill({ value }: StatusPillProps) {
   const normalized = value.toLowerCase()
+  const label = value.replaceAll('_', ' ')
 
-  return <span className={`status-pill ${normalized}`}>{value}</span>
+  return <span className={`status-pill ${normalized}`}>{label}</span>
 }

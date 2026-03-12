@@ -8,7 +8,7 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Backend enterprise baseline is implemented and verified locally.
 - Swagger / OpenAPI is enabled.
 - Flyway database migrations are enabled and currently validated through `V5`.
-- The React frontend workspace exists in [`frontend/`](./frontend) and builds successfully, but the newest enterprise APIs are not fully wired into the UI yet.
+- The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, and admin order/refund review surfaces.
 
 ## Core Capabilities
 
@@ -26,6 +26,9 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Order shipping address snapshot at checkout time
 - Admin-only internal notes on orders
 - Customer refund request flow and admin refund review
+- Frontend checkout address selection with inline address capture
+- Frontend order history view with shipment and refund follow-up
+- Frontend admin dashboard with order search filters and refund review actions
 - Swagger-documented admin endpoints for catalog, orders, inventory, payments, shipments, refunds, and audit logs
 
 ## Tech Stack
@@ -89,6 +92,10 @@ cd frontend
 npm install
 npm run dev
 ```
+
+Frontend local default:
+
+- Web UI: `http://127.0.0.1:5173`
 
 Frontend build verification:
 
@@ -229,6 +236,12 @@ Implemented and verified:
   - internal order notes
   - admin order search
   - audit trail lookup
+- Frontend delivery:
+  - shipping address selection during checkout
+  - inline customer address creation
+  - customer shipment and refund visibility
+  - admin refund review queue
+  - admin order filtering by status, customer keyword, and date range
 
 ## Repository Structure
 
@@ -266,11 +279,20 @@ Latest frontend verification:
 
 ```powershell
 cd frontend
+npm run lint
 npm run build
 ```
+
+Latest verified results:
+
+- Frontend lint passed
+- Frontend production build passed
+- Checkout page now creates orders with a selected address snapshot
+- Orders page now surfaces shipment placeholders and refund requests
+- Admin page now filters orders and reviews refund requests against live APIs
 
 ## Notes
 
 - Payment, shipment, and refund integrations are still simulated integration points, not production third-party gateway connections.
 - This project is currently implemented as a modular monolith, which is intentional for this phase.
-- The newest enterprise APIs are available in Swagger, but the frontend still needs a dedicated integration pass for addresses, refund flows, and advanced admin search.
+- The frontend is now aligned with the core enterprise APIs, but deeper production concerns such as observability, CI/CD, and external gateway integration still remain for later phases.
