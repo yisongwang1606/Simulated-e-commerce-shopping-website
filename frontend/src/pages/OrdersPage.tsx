@@ -17,17 +17,20 @@ import type {
 } from '../api/contracts'
 import { extractErrorMessage } from '../shared/error'
 import { formatCurrency, formatDate, formatDateTime } from '../shared/formatters'
+import { patchIndexedValue, setIndexedValue } from '../shared/state'
 import { EmptyState } from '../shared/ui/EmptyState'
 import { LoadingState } from '../shared/ui/LoadingState'
 import { SectionHeading } from '../shared/ui/SectionHeading'
 import { StatusPill } from '../shared/ui/StatusPill'
 
 const refundableStatuses = new Set(['SHIPPED', 'COMPLETED'])
-const defaultTicketDraft: SupportTicketInput = {
-  category: 'DELIVERY',
-  priority: 'MEDIUM',
-  subject: '',
-  customerMessage: '',
+function createDefaultTicketDraft(): SupportTicketInput {
+  return {
+    category: 'DELIVERY',
+    priority: 'MEDIUM',
+    subject: '',
+    customerMessage: '',
+  }
 }
 
 export function OrdersPage() {
@@ -78,7 +81,7 @@ export function OrdersPage() {
   }, [loadOrders])
 
   const loadOrderOperations = useCallback(async (orderId: number) => {
-    setDetailLoadingByOrder((current) => ({ ...current, [orderId]: true }))
+    setDetailLoadingByOrder((current) => setIndexedValue(current, orderId, true))
 
     try {
       const [refunds, shipments, supportTickets] = await Promise.all([
@@ -96,14 +99,14 @@ export function OrdersPage() {
     } catch (error) {
       setErrorMessage(extractErrorMessage(error))
     } finally {
-      setDetailLoadingByOrder((current) => ({ ...current, [orderId]: false }))
+      setDetailLoadingByOrder((current) => setIndexedValue(current, orderId, false))
     }
   }, [])
 
   function handleToggleOrder(orderId: number) {
     const shouldOpen = !expandedOrderIds[orderId]
 
-    setExpandedOrderIds((current) => ({ ...current, [orderId]: shouldOpen }))
+    setExpandedOrderIds((current) => setIndexedValue(current, orderId, shouldOpen))
 
     if (
       shouldOpen &&
@@ -129,7 +132,7 @@ export function OrdersPage() {
 
     try {
       const refundRequest = await createRefundRequest(orderId, { reason })
-      setRefundDrafts((current) => ({ ...current, [orderId]: '' }))
+      setRefundDrafts((current) => setIndexedValue(current, orderId, ''))
       setMessage(`Refund request ${refundRequest.id} submitted for ${refundRequest.orderNo}.`)
       await loadOrderOperations(orderId)
     } catch (error) {
@@ -140,7 +143,7 @@ export function OrdersPage() {
   }
 
   async function handleSupportTicketSubmit(orderId: number) {
-    const ticketDraft = ticketDrafts[orderId] ?? defaultTicketDraft
+    const ticketDraft = ticketDrafts[orderId] ?? createDefaultTicketDraft()
     if (!ticketDraft.subject.trim() || !ticketDraft.customerMessage.trim()) {
       setErrorMessage('Enter a ticket subject and message before submitting.')
       return
@@ -156,10 +159,9 @@ export function OrdersPage() {
         subject: ticketDraft.subject.trim(),
         customerMessage: ticketDraft.customerMessage.trim(),
       })
-      setTicketDrafts((current) => ({
-        ...current,
-        [orderId]: defaultTicketDraft,
-      }))
+      setTicketDrafts((current) =>
+        setIndexedValue(current, orderId, createDefaultTicketDraft()),
+      )
       setMessage(`Support ticket ${supportTicket.ticketNo} created for ${supportTicket.orderNo}.`)
       await loadOrderOperations(orderId)
     } catch (error) {
@@ -173,13 +175,13 @@ export function OrdersPage() {
     orderId: number,
     patch: Partial<SupportTicketInput>,
   ) {
-    setTicketDrafts((current) => ({
-      ...current,
-      [orderId]: {
-        ...(current[orderId] ?? defaultTicketDraft),
-        ...patch,
-      },
-    }))
+    setTicketDrafts((current) =>
+      patchIndexedValue(current, orderId, createDefaultTicketDraft(), patch),
+    )
+  }
+
+  function updateRefundDraft(orderId: number, value: string) {
+    setRefundDrafts((current) => setIndexedValue(current, orderId, value))
   }
 
   return (
@@ -205,7 +207,7 @@ export function OrdersPage() {
               const canRequestRefund =
                 refundableStatuses.has(order.status) &&
                 !refundRequests.some((request) => request.refundStatus !== 'REJECTED')
-              const ticketDraft = ticketDrafts[order.id] ?? defaultTicketDraft
+              const ticketDraft = ticketDrafts[order.id] ?? createDefaultTicketDraft()
 
               return (
                 <article className="order-card enterprise-order-card" key={order.id}>
@@ -370,10 +372,7 @@ export function OrdersPage() {
                                   <textarea
                                     id={`refund-${order.id}`}
                                     onChange={(event) =>
-                                      setRefundDrafts((current) => ({
-                                        ...current,
-                                        [order.id]: event.target.value,
-                                      }))
+                                      updateRefundDraft(order.id, event.target.value)
                                     }
                                     placeholder="Explain the issue for support and finance review."
                                     value={refundDrafts[order.id] ?? ''}

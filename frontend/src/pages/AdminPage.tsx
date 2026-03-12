@@ -33,7 +33,9 @@ import {
   formatDateTime,
   formatInteger,
 } from '../shared/formatters'
+import { patchIndexedValue, setIndexedValue, setObjectField } from '../shared/state'
 import { LoadingState } from '../shared/ui/LoadingState'
+import { PaginationControls } from '../shared/ui/PaginationControls'
 import { SectionHeading } from '../shared/ui/SectionHeading'
 import { StatusPill } from '../shared/ui/StatusPill'
 
@@ -66,6 +68,9 @@ const initialSupportFilters = {
   priority: '',
   assignedTeam: '',
 }
+
+type OrderFilters = typeof initialOrderFilters
+type SupportFilters = typeof initialSupportFilters
 
 function buildSupportTicketDraft(ticket: SupportTicket): SupportTicketUpdateInput {
   return {
@@ -223,6 +228,35 @@ export function AdminPage() {
     void loadAdminData({ keepSkeleton: true })
   }, [loadAdminData])
 
+  function updateProductField<K extends keyof ProductPayload>(
+    field: K,
+    value: ProductPayload[K],
+  ) {
+    setForm((current) => setObjectField(current, field, value))
+  }
+
+  function updateOrderFilter<K extends keyof OrderFilters>(
+    field: K,
+    value: OrderFilters[K],
+  ) {
+    setOrderFilters((current) => setObjectField(current, field, value))
+  }
+
+  function updateSupportFilter<K extends keyof SupportFilters>(
+    field: K,
+    value: SupportFilters[K],
+  ) {
+    setSupportFilters((current) => setObjectField(current, field, value))
+  }
+
+  function updateRefundReviewNote(refundRequestId: number, note: string) {
+    setRefundReviewNotes((current) => setIndexedValue(current, refundRequestId, note))
+  }
+
+  function updateSelectedTag(orderId: number, tagId: string) {
+    setSelectedTagByOrder((current) => setIndexedValue(current, orderId, tagId))
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsSavingProduct(true)
@@ -308,14 +342,9 @@ export function AdminPage() {
     ticket: SupportTicket,
     patch: Partial<SupportTicketUpdateInput>,
   ) {
-    setSupportTicketDrafts((current) => ({
-      ...current,
-      [ticket.id]: {
-        ...buildSupportTicketDraft(ticket),
-        ...current[ticket.id],
-        ...patch,
-      },
-    }))
+    setSupportTicketDrafts((current) =>
+      patchIndexedValue(current, ticket.id, buildSupportTicketDraft(ticket), patch),
+    )
   }
 
   async function handleSupportTicketUpdate(ticket: SupportTicket) {
@@ -336,14 +365,6 @@ export function AdminPage() {
     }
   }
 
-  function renderPageOptions(totalPages: number) {
-    return Array.from({ length: totalPages }, (_, index) => (
-      <option key={index} value={index}>
-        {index + 1}
-      </option>
-    ))
-  }
-
   function renderProductSection() {
     return (
       <div className="surface stack-lg">
@@ -359,9 +380,7 @@ export function AdminPage() {
               <label htmlFor="product-sku">SKU</label>
               <input
                 id="product-sku"
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, sku: event.target.value }))
-                }
+                onChange={(event) => updateProductField('sku', event.target.value)}
                 value={form.sku}
               />
             </div>
@@ -369,9 +388,7 @@ export function AdminPage() {
               <label htmlFor="product-name">Name</label>
               <input
                 id="product-name"
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, name: event.target.value }))
-                }
+                onChange={(event) => updateProductField('name', event.target.value)}
                 required
                 value={form.name}
               />
@@ -380,9 +397,7 @@ export function AdminPage() {
               <label htmlFor="product-brand">Brand</label>
               <input
                 id="product-brand"
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, brand: event.target.value }))
-                }
+                onChange={(event) => updateProductField('brand', event.target.value)}
                 value={form.brand}
               />
             </div>
@@ -390,12 +405,7 @@ export function AdminPage() {
               <label htmlFor="product-category">Category</label>
               <input
                 id="product-category"
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    category: event.target.value,
-                  }))
-                }
+                onChange={(event) => updateProductField('category', event.target.value)}
                 required
                 value={form.category}
               />
@@ -406,10 +416,7 @@ export function AdminPage() {
                 id="product-price"
                 min={0.01}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    price: Number(event.target.value),
-                  }))
+                  updateProductField('price', Number(event.target.value))
                 }
                 required
                 step="0.01"
@@ -423,10 +430,7 @@ export function AdminPage() {
                 id="product-cost-price"
                 min={0}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    costPrice: Number(event.target.value),
-                  }))
+                  updateProductField('costPrice', Number(event.target.value))
                 }
                 step="0.01"
                 type="number"
@@ -439,10 +443,7 @@ export function AdminPage() {
                 id="product-stock"
                 min={0}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    stock: Number(event.target.value),
-                  }))
+                  updateProductField('stock', Number(event.target.value))
                 }
                 required
                 type="number"
@@ -455,10 +456,7 @@ export function AdminPage() {
                 id="product-safety-stock"
                 min={0}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    safetyStock: Number(event.target.value),
-                  }))
+                  updateProductField('safetyStock', Number(event.target.value))
                 }
                 type="number"
                 value={form.safetyStock ?? 0}
@@ -470,10 +468,7 @@ export function AdminPage() {
                 id="product-weight"
                 min={0}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    weightKg: Number(event.target.value),
-                  }))
+                  updateProductField('weightKg', Number(event.target.value))
                 }
                 step="0.01"
                 type="number"
@@ -486,10 +481,7 @@ export function AdminPage() {
                 id="product-lead-time"
                 min={0}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    leadTimeDays: Number(event.target.value),
-                  }))
+                  updateProductField('leadTimeDays', Number(event.target.value))
                 }
                 type="number"
                 value={form.leadTimeDays ?? 0}
@@ -499,12 +491,7 @@ export function AdminPage() {
               <label htmlFor="product-status">Status</label>
               <select
                 id="product-status"
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    status: event.target.value,
-                  }))
-                }
+                onChange={(event) => updateProductField('status', event.target.value)}
                 value={form.status}
               >
                 <option value="ACTIVE">ACTIVE</option>
@@ -515,12 +502,7 @@ export function AdminPage() {
               <label htmlFor="product-tax-class">Tax class</label>
               <select
                 id="product-tax-class"
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    taxClass: event.target.value,
-                  }))
-                }
+                onChange={(event) => updateProductField('taxClass', event.target.value)}
                 value={form.taxClass}
               >
                 <option value="STANDARD">STANDARD</option>
@@ -533,12 +515,7 @@ export function AdminPage() {
             <label htmlFor="product-description">Description</label>
             <textarea
               id="product-description"
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  description: event.target.value,
-                }))
-              }
+              onChange={(event) => updateProductField('description', event.target.value)}
               required
               value={form.description}
             />
@@ -548,12 +525,7 @@ export function AdminPage() {
             <input
               checked={form.featured ?? false}
               id="product-featured"
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  featured: event.target.checked,
-                }))
-              }
+              onChange={(event) => updateProductField('featured', event.target.checked)}
               type="checkbox"
             />
             <span>Feature this product on merchandising surfaces</span>
@@ -619,12 +591,7 @@ export function AdminPage() {
             <label htmlFor="order-customer">Customer or order</label>
             <input
               id="order-customer"
-              onChange={(event) =>
-                setOrderFilters((current) => ({
-                  ...current,
-                  customer: event.target.value,
-                }))
-              }
+              onChange={(event) => updateOrderFilter('customer', event.target.value)}
               placeholder="Order no, username, or email"
               value={orderFilters.customer}
             />
@@ -633,12 +600,7 @@ export function AdminPage() {
             <label htmlFor="order-status-filter">Status</label>
             <select
               id="order-status-filter"
-              onChange={(event) =>
-                setOrderFilters((current) => ({
-                  ...current,
-                  status: event.target.value,
-                }))
-              }
+              onChange={(event) => updateOrderFilter('status', event.target.value)}
               value={orderFilters.status}
             >
               <option value="">All statuses</option>
@@ -657,12 +619,7 @@ export function AdminPage() {
             <label htmlFor="order-date-from">Date from</label>
             <input
               id="order-date-from"
-              onChange={(event) =>
-                setOrderFilters((current) => ({
-                  ...current,
-                  dateFrom: event.target.value,
-                }))
-              }
+              onChange={(event) => updateOrderFilter('dateFrom', event.target.value)}
               type="date"
               value={orderFilters.dateFrom}
             />
@@ -671,12 +628,7 @@ export function AdminPage() {
             <label htmlFor="order-date-to">Date to</label>
             <input
               id="order-date-to"
-              onChange={(event) =>
-                setOrderFilters((current) => ({
-                  ...current,
-                  dateTo: event.target.value,
-                }))
-              }
+              onChange={(event) => updateOrderFilter('dateTo', event.target.value)}
               type="date"
               value={orderFilters.dateTo}
             />
@@ -755,12 +707,7 @@ export function AdminPage() {
                       </div>
                       <div className="stack-row">
                         <select
-                          onChange={(event) =>
-                            setSelectedTagByOrder((current) => ({
-                              ...current,
-                              [order.id]: event.target.value,
-                            }))
-                          }
+                          onChange={(event) => updateSelectedTag(order.id, event.target.value)}
                           value={selectedTagByOrder[order.id] ?? ''}
                         >
                           <option value="">Assign tag</option>
@@ -789,44 +736,13 @@ export function AdminPage() {
         </div>
 
         {orderPage && orderPage.totalPages > 0 ? (
-          <div className="toolbar">
-            <button
-              className="button-outline"
-              disabled={orderPage.page === 0 || isRefreshing}
-              onClick={() =>
-                void loadAdminData({ orderPage: Math.max(orderPage.page - 1, 0) })
-              }
-              type="button"
-            >
-              Previous
-            </button>
-            <div className="page-jump">
-              <label htmlFor="admin-order-page">Page</label>
-              <select
-                id="admin-order-page"
-                onChange={(event) =>
-                  void loadAdminData({
-                    orderPage: Number(event.target.value),
-                  })
-                }
-                value={orderPage.page}
-              >
-                {renderPageOptions(orderPage.totalPages)}
-              </select>
-            </div>
-            <button
-              className="button-outline"
-              disabled={orderPage.page >= orderPage.totalPages - 1 || isRefreshing}
-              onClick={() =>
-                void loadAdminData({
-                  orderPage: Math.min(orderPage.page + 1, orderPage.totalPages - 1),
-                })
-              }
-              type="button"
-            >
-              Next
-            </button>
-          </div>
+          <PaginationControls
+            disabled={isRefreshing}
+            onPageChange={(page) => void loadAdminData({ orderPage: page })}
+            page={orderPage.page}
+            selectId="admin-order-page"
+            totalPages={orderPage.totalPages}
+          />
         ) : null}
       </div>
     )
@@ -894,10 +810,7 @@ export function AdminPage() {
                     <textarea
                       id={`refund-review-${refund.id}`}
                       onChange={(event) =>
-                        setRefundReviewNotes((current) => ({
-                          ...current,
-                          [refund.id]: event.target.value,
-                        }))
+                        updateRefundReviewNote(refund.id, event.target.value)
                       }
                       placeholder="Record the review outcome for finance and support."
                       value={refundReviewNotes[refund.id] ?? ''}
@@ -933,46 +846,13 @@ export function AdminPage() {
         </div>
 
         {refundPage && refundPage.totalPages > 0 ? (
-          <div className="toolbar">
-            <button
-              className="button-outline"
-              disabled={refundPage.page === 0 || isRefreshing}
-              onClick={() =>
-                void loadAdminData({
-                  refundPage: Math.max(refundPage.page - 1, 0),
-                })
-              }
-              type="button"
-            >
-              Previous
-            </button>
-            <div className="page-jump">
-              <label htmlFor="admin-refund-page">Page</label>
-              <select
-                id="admin-refund-page"
-                onChange={(event) =>
-                  void loadAdminData({
-                    refundPage: Number(event.target.value),
-                  })
-                }
-                value={refundPage.page}
-              >
-                {renderPageOptions(refundPage.totalPages)}
-              </select>
-            </div>
-            <button
-              className="button-outline"
-              disabled={refundPage.page >= refundPage.totalPages - 1 || isRefreshing}
-              onClick={() =>
-                void loadAdminData({
-                  refundPage: Math.min(refundPage.page + 1, refundPage.totalPages - 1),
-                })
-              }
-              type="button"
-            >
-              Next
-            </button>
-          </div>
+          <PaginationControls
+            disabled={isRefreshing}
+            onPageChange={(page) => void loadAdminData({ refundPage: page })}
+            page={refundPage.page}
+            selectId="admin-refund-page"
+            totalPages={refundPage.totalPages}
+          />
         ) : null}
       </div>
     )
@@ -992,12 +872,7 @@ export function AdminPage() {
             <label htmlFor="support-status">Status</label>
             <select
               id="support-status"
-              onChange={(event) =>
-                setSupportFilters((current) => ({
-                  ...current,
-                  status: event.target.value,
-                }))
-              }
+              onChange={(event) => updateSupportFilter('status', event.target.value)}
               value={supportFilters.status}
             >
               <option value="">All statuses</option>
@@ -1012,12 +887,7 @@ export function AdminPage() {
             <label htmlFor="support-priority">Priority</label>
             <select
               id="support-priority"
-              onChange={(event) =>
-                setSupportFilters((current) => ({
-                  ...current,
-                  priority: event.target.value,
-                }))
-              }
+              onChange={(event) => updateSupportFilter('priority', event.target.value)}
               value={supportFilters.priority}
             >
               <option value="">All priorities</option>
@@ -1032,10 +902,7 @@ export function AdminPage() {
             <input
               id="support-team"
               onChange={(event) =>
-                setSupportFilters((current) => ({
-                  ...current,
-                  assignedTeam: event.target.value,
-                }))
+                updateSupportFilter('assignedTeam', event.target.value)
               }
               placeholder="Customer Support"
               value={supportFilters.assignedTeam}
@@ -1166,52 +1033,13 @@ export function AdminPage() {
         </div>
 
         {supportTicketPage && supportTicketPage.totalPages > 0 ? (
-          <div className="toolbar">
-            <button
-              className="button-outline"
-              disabled={supportTicketPage.page === 0 || isRefreshing}
-              onClick={() =>
-                void loadAdminData({
-                  supportPage: Math.max(supportTicketPage.page - 1, 0),
-                })
-              }
-              type="button"
-            >
-              Previous
-            </button>
-            <div className="page-jump">
-              <label htmlFor="admin-support-page">Page</label>
-              <select
-                id="admin-support-page"
-                onChange={(event) =>
-                  void loadAdminData({
-                    supportPage: Number(event.target.value),
-                  })
-                }
-                value={supportTicketPage.page}
-              >
-                {renderPageOptions(supportTicketPage.totalPages)}
-              </select>
-            </div>
-            <button
-              className="button-outline"
-              disabled={
-                supportTicketPage.page >= supportTicketPage.totalPages - 1 ||
-                isRefreshing
-              }
-              onClick={() =>
-                void loadAdminData({
-                  supportPage: Math.min(
-                    supportTicketPage.page + 1,
-                    supportTicketPage.totalPages - 1,
-                  ),
-                })
-              }
-              type="button"
-            >
-              Next
-            </button>
-          </div>
+          <PaginationControls
+            disabled={isRefreshing}
+            onPageChange={(page) => void loadAdminData({ supportPage: page })}
+            page={supportTicketPage.page}
+            selectId="admin-support-page"
+            totalPages={supportTicketPage.totalPages}
+          />
         ) : null}
       </div>
     )

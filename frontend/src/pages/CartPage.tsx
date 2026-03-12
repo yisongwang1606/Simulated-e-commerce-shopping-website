@@ -7,6 +7,7 @@ import { createOrder } from '../api/orders'
 import type { Cart, CustomerAddress, CustomerAddressInput } from '../api/contracts'
 import { extractErrorMessage } from '../shared/error'
 import { formatCurrency } from '../shared/formatters'
+import { setIndexedValue, setObjectField } from '../shared/state'
 import { EmptyState } from '../shared/ui/EmptyState'
 import { LoadingState } from '../shared/ui/LoadingState'
 import { SectionHeading } from '../shared/ui/SectionHeading'
@@ -79,6 +80,17 @@ export function CartPage() {
   useEffect(() => {
     void loadCheckoutData()
   }, [loadCheckoutData])
+
+  function updateAddressField<K extends keyof CustomerAddressInput>(
+    field: K,
+    value: CustomerAddressInput[K],
+  ) {
+    setAddressForm((current) => setObjectField(current, field, value))
+  }
+
+  function updateDraftQuantity(productId: number, quantity: number) {
+    setDraftQuantities((current) => setIndexedValue(current, productId, quantity))
+  }
 
   async function handleUpdate(productId: number) {
     setIsSubmitting(true)
@@ -214,10 +226,7 @@ export function CartPage() {
                           id={`qty-${item.productId}`}
                           min={1}
                           onChange={(event) =>
-                            setDraftQuantities((current) => ({
-                              ...current,
-                              [item.productId]: Number(event.target.value),
-                            }))
+                            updateDraftQuantity(item.productId, Number(event.target.value))
                           }
                           type="number"
                           value={draftQuantities[item.productId] ?? item.quantity}
@@ -331,10 +340,7 @@ export function CartPage() {
                         <input
                           id="address-label"
                           onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              addressLabel: event.target.value,
-                            }))
+                            updateAddressField('addressLabel', event.target.value)
                           }
                           required
                           value={addressForm.addressLabel}
@@ -345,10 +351,7 @@ export function CartPage() {
                         <input
                           id="receiver-name"
                           onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              receiverName: event.target.value,
-                            }))
+                            updateAddressField('receiverName', event.target.value)
                           }
                           required
                           value={addressForm.receiverName}
@@ -359,10 +362,7 @@ export function CartPage() {
                         <input
                           id="receiver-phone"
                           onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              phone: event.target.value,
-                            }))
+                            updateAddressField('phone', event.target.value)
                           }
                           required
                           value={addressForm.phone}
@@ -373,10 +373,7 @@ export function CartPage() {
                         <input
                           id="address-city"
                           onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              city: event.target.value,
-                            }))
+                            updateAddressField('city', event.target.value)
                           }
                           required
                           value={addressForm.city}
@@ -388,12 +385,7 @@ export function CartPage() {
                       <label htmlFor="address-line1">Address line 1</label>
                       <input
                         id="address-line1"
-                        onChange={(event) =>
-                          setAddressForm((current) => ({
-                            ...current,
-                            line1: event.target.value,
-                          }))
-                        }
+                        onChange={(event) => updateAddressField('line1', event.target.value)}
                         required
                         value={addressForm.line1}
                       />
@@ -403,12 +395,7 @@ export function CartPage() {
                       <label htmlFor="address-line2">Address line 2</label>
                       <input
                         id="address-line2"
-                        onChange={(event) =>
-                          setAddressForm((current) => ({
-                            ...current,
-                            line2: event.target.value,
-                          }))
-                        }
+                        onChange={(event) => updateAddressField('line2', event.target.value)}
                         value={addressForm.line2}
                       />
                     </div>
@@ -419,10 +406,7 @@ export function CartPage() {
                         <input
                           id="address-province"
                           onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              province: event.target.value,
-                            }))
+                            updateAddressField('province', event.target.value)
                           }
                           required
                           value={addressForm.province}
@@ -433,10 +417,7 @@ export function CartPage() {
                         <input
                           id="address-postal-code"
                           onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              postalCode: event.target.value,
-                            }))
+                            updateAddressField('postalCode', event.target.value)
                           }
                           required
                           value={addressForm.postalCode}
@@ -449,10 +430,7 @@ export function CartPage() {
                         checked={addressForm.isDefault}
                         id="address-default"
                         onChange={(event) =>
-                          setAddressForm((current) => ({
-                            ...current,
-                            isDefault: event.target.checked,
-                          }))
+                          updateAddressField('isDefault', event.target.checked)
                         }
                         type="checkbox"
                       />
