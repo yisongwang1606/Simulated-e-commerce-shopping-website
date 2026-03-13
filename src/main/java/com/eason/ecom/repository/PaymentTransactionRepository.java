@@ -20,5 +20,11 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     @EntityGraph(attributePaths = {"order", "order.user"})
     Optional<PaymentTransaction> findByOrderIdAndProviderReference(Long orderId, String providerReference);
 
+    @EntityGraph(attributePaths = {"order", "order.user"})
+    Optional<PaymentTransaction> findFirstByOrderIdAndProviderCodeAndPaymentStatusOrderByCreatedAtDesc(
+            Long orderId,
+            String providerCode,
+            PaymentStatus paymentStatus);
+
     boolean existsByOrderIdAndPaymentStatus(Long orderId, PaymentStatus paymentStatus);
 }

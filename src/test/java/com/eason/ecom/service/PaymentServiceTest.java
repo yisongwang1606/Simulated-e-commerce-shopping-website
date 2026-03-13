@@ -221,6 +221,10 @@ class PaymentServiceTest {
     void initiateCustomerStripePaymentUsesOrderTotalAndReturnsClientSecret() {
         CustomerOrder customerOrder = buildOrder(55L, OrderStatus.CREATED);
         when(customerOrderRepository.findByIdAndUserId(55L, 2L)).thenReturn(Optional.of(customerOrder));
+        when(paymentTransactionRepository.findFirstByOrderIdAndProviderCodeAndPaymentStatusOrderByCreatedAtDesc(
+                55L,
+                "STRIPE",
+                PaymentStatus.PENDING)).thenReturn(Optional.empty());
         when(customerOrderRepository.findWithDetailsById(55L)).thenReturn(Optional.of(customerOrder));
         when(paymentTransactionRepository.existsByOrderIdAndPaymentStatus(55L, PaymentStatus.SUCCEEDED)).thenReturn(false);
         when(paymentReferenceGenerator.next()).thenReturn("PAY-20260312150000000-3333");
@@ -247,6 +251,40 @@ class PaymentServiceTest {
         assertEquals(BigDecimal.valueOf(129.99), response.amount());
         assertEquals("STRIPE", response.providerCode());
         assertEquals("pi_test_customer_001_secret", response.clientSecret());
+    }
+
+    @Test
+    void initiateCustomerStripePaymentReusesExistingPendingStripeIntent() {
+        CustomerOrder customerOrder = buildOrder(55L, OrderStatus.CREATED);
+        PaymentTransaction existingPendingPayment = buildPayment(customerOrder);
+        existingPendingPayment.setProviderCode("STRIPE");
+        existingPendingPayment.setProviderReference("pi_existing_123");
+
+        when(customerOrderRepository.findByIdAndUserId(55L, 2L)).thenReturn(Optional.of(customerOrder));
+        when(paymentTransactionRepository.findFirstByOrderIdAndProviderCodeAndPaymentStatusOrderByCreatedAtDesc(
+                55L,
+                "STRIPE",
+                PaymentStatus.PENDING)).thenReturn(Optional.of(existingPendingPayment));
+        when(stripePaymentGateway.getPaymentIntent("pi_existing_123"))
+                .thenReturn(new StripePaymentIntentResult(
+                        "pi_existing_123",
+                        "pi_existing_123_secret",
+                        "PENDING",
+                        "Stripe PaymentIntent status: requires_payment_method"));
+
+        PaymentTransactionResponse response = paymentService.initiateCustomerStripePayment(
+                2L,
+                "demo",
+                55L,
+                null);
+
+        assertEquals("PENDING", response.paymentStatus());
+        assertEquals("STRIPE", response.providerCode());
+        assertEquals("pi_existing_123", response.providerReference());
+        assertEquals("pi_existing_123_secret", response.clientSecret());
+        assertEquals("PAY-20260312150000000-1111", response.transactionRef());
+        verify(stripePaymentGateway, never()).createPaymentIntent(any(CustomerOrder.class), any(PaymentTransaction.class), any(PaymentInitiationRequest.class));
+        verify(paymentTransactionRepository, never()).save(any(PaymentTransaction.class));
     }
 
     @Test
@@ -320,6 +358,7 @@ class PaymentServiceTest {
         paymentTransaction.setTransactionRef("PAY-20260312150000000-1111");
         paymentTransaction.setProviderCode("SIMULATED_GATEWAY");
         paymentTransaction.setAmount(BigDecimal.valueOf(129.99));
+        paymentTransaction.setProviderReference(null);
         paymentTransaction.setCreatedAt(LocalDateTime.of(2026, 3, 12, 15, 0));
         paymentTransaction.setUpdatedAt(LocalDateTime.of(2026, 3, 12, 15, 0));
         return paymentTransaction;

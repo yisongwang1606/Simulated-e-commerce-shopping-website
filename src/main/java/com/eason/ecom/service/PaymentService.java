@@ -162,6 +162,10 @@ public class PaymentService {
             Long orderId,
             CustomerStripePaymentIntentRequest request) {
         CustomerOrder customerOrder = getOwnedOrder(userId, orderId);
+        PaymentTransactionResponse reusableResponse = reusePendingCustomerStripePayment(orderId);
+        if (reusableResponse != null) {
+            return reusableResponse;
+        }
         return initiatePayment(
                 orderId,
                 new PaymentInitiationRequest(
@@ -390,6 +394,36 @@ public class PaymentService {
     private CustomerOrder getOwnedOrder(Long userId, Long orderId) {
         return customerOrderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+    }
+
+    private PaymentTransactionResponse reusePendingCustomerStripePayment(Long orderId) {
+        PaymentTransaction pendingTransaction = paymentTransactionRepository
+                .findFirstByOrderIdAndProviderCodeAndPaymentStatusOrderByCreatedAtDesc(
+                        orderId,
+                        "STRIPE",
+                        PaymentStatus.PENDING)
+                .orElse(null);
+        if (pendingTransaction == null || !StringUtils.hasText(pendingTransaction.getProviderReference())) {
+            return null;
+        }
+
+        StripePaymentIntentResult paymentIntentResult =
+                stripePaymentGateway.getPaymentIntent(pendingTransaction.getProviderReference());
+        if (isTerminalProviderStatus(paymentIntentResult.paymentStatus())) {
+            PaymentTransactionResponse callbackResponse = handleCallback(new PaymentCallbackRequest(
+                    pendingTransaction.getTransactionRef(),
+                    paymentIntentResult.paymentStatus(),
+                    paymentIntentResult.providerReference(),
+                    pendingTransaction.getProviderCode(),
+                    paymentIntentResult.note()));
+            return "PENDING".equals(callbackResponse.paymentStatus())
+                    ? null
+                    : withClientSecret(callbackResponse, paymentIntentResult.clientSecret());
+        }
+
+        return withClientSecret(
+                toResponse(pendingTransaction, null),
+                paymentIntentResult.clientSecret());
     }
 
     private String resolveCustomerStripeNote(CustomerStripePaymentIntentRequest request) {

@@ -117,19 +117,48 @@ export function StripeOrderPaymentPanel({
 }: StripeOrderPaymentPanelProps) {
   const [checkoutPayment, setCheckoutPayment] = useState<PaymentTransaction | null>(null)
   const [isPreparing, setIsPreparing] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const latestPayment = payments[0] ?? null
   const successfulPayment =
     payments.find((payment) => payment.paymentStatus === 'SUCCEEDED') ?? null
+  const pendingStripePayment =
+    payments.find(
+      (payment) =>
+        payment.providerCode === 'STRIPE' &&
+        payment.paymentStatus === 'PENDING' &&
+        payment.providerReference,
+    ) ?? null
   const isPayable = payableStatuses.has(order.status) && successfulPayment === null
+  const activeCheckoutPayment = checkoutPayment ?? pendingStripePayment
 
   useEffect(() => {
     if (successfulPayment) {
       setCheckoutPayment(null)
+      setIsModalOpen(false)
     }
   }, [successfulPayment])
 
+  useEffect(() => {
+    if (!isModalOpen) {
+      return undefined
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isModalOpen])
+
   async function handlePrepareCheckout() {
+    if (activeCheckoutPayment?.clientSecret && activeCheckoutPayment.providerReference) {
+      setCheckoutPayment(activeCheckoutPayment)
+      onMessage(`Payment ${activeCheckoutPayment.transactionRef} is ready for card entry.`)
+      onError('')
+      setIsModalOpen(true)
+      return
+    }
+
     setIsPreparing(true)
     onMessage('')
     onError('')
@@ -145,8 +174,8 @@ export function StripeOrderPaymentPanel({
       }
 
       setCheckoutPayment(payment)
+      setIsModalOpen(true)
       onMessage(`Payment ${payment.transactionRef} is ready for card entry.`)
-      await onPaymentUpdated()
     } catch (error) {
       onError(extractErrorMessage(error))
     } finally {
@@ -163,6 +192,9 @@ export function StripeOrderPaymentPanel({
             clientSecret: checkoutPayment?.clientSecret ?? payment.clientSecret,
           },
     )
+    if (payment.paymentStatus === 'SUCCEEDED') {
+      setIsModalOpen(false)
+    }
     await onPaymentUpdated()
   }
 
@@ -240,10 +272,61 @@ export function StripeOrderPaymentPanel({
             {latestPayment ? <StatusPill value={latestPayment.paymentStatus} /> : null}
           </div>
 
-          {checkoutPayment?.clientSecret && checkoutPayment.providerReference ? (
+          {isPreparing ? (
+            <LoadingState title="Preparing secure Stripe checkout..." />
+          ) : (
+            <button
+              className="button"
+              disabled={isPreparing}
+              onClick={() => void handlePrepareCheckout()}
+              type="button"
+            >
+              {activeCheckoutPayment?.providerReference
+                ? 'Continue card payment'
+                : 'Open card payment form'}
+            </button>
+          )}
+        </div>
+      ) : null}
+
+      {isModalOpen && activeCheckoutPayment?.clientSecret && activeCheckoutPayment.providerReference ? (
+        <div
+          aria-modal="true"
+          className="payment-modal-backdrop"
+          onClick={() => setIsModalOpen(false)}
+          role="dialog"
+        >
+          <div className="payment-modal-panel stack" onClick={(event) => event.stopPropagation()}>
+            <div className="toolbar">
+              <div>
+                <p className="eyebrow">Secure payment</p>
+                <h4 className="card-title">Complete Stripe checkout</h4>
+              </div>
+              <button
+                aria-label="Close payment window"
+                className="button-outline payment-modal-close"
+                onClick={() => setIsModalOpen(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="payment-panel-summary">
+              <div className="info-card">
+                <p className="eyebrow">Transaction</p>
+                <strong>{activeCheckoutPayment.transactionRef}</strong>
+                <span className="supporting-copy">{activeCheckoutPayment.providerReference}</span>
+              </div>
+              <div className="info-card">
+                <p className="eyebrow">Amount</p>
+                <strong>{formatCurrency(order.totalPrice)}</strong>
+              </div>
+            </div>
+
             <Elements
               options={{
-                clientSecret: checkoutPayment.clientSecret,
+                clientSecret: activeCheckoutPayment.clientSecret,
                 appearance: {
                   theme: 'stripe',
                   variables: {
@@ -259,16 +342,10 @@ export function StripeOrderPaymentPanel({
                 onError={onError}
                 onMessage={onMessage}
                 orderId={order.id}
-                providerReference={checkoutPayment.providerReference}
+                providerReference={activeCheckoutPayment.providerReference}
               />
             </Elements>
-          ) : isPreparing ? (
-            <LoadingState title="Preparing secure Stripe checkout..." />
-          ) : (
-            <button className="button" onClick={() => void handlePrepareCheckout()} type="button">
-              Open card payment form
-            </button>
-          )}
+          </div>
         </div>
       ) : null}
     </section>
