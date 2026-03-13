@@ -20,7 +20,6 @@ The solution includes:
 - MySQL relational persistence
 - Redis operational state storage
 - Kafka asynchronous event transport
-- RabbitMQ asynchronous event transport
 - Prometheus metrics collection
 - Grafana dashboard visualization
 - GitHub Actions CI execution
@@ -200,7 +199,7 @@ Applied in this project:
 - order, payment, shipment, and refund flows publish lifecycle events to Kafka
 - a dedicated consumer group stores event receipt records in MySQL for operational traceability
 - Docker Compose provisions the Kafka broker used by the local stack
-- RabbitMQ runs in parallel for the same order lifecycle events so broker wiring can be exercised through both streaming and queue-based delivery patterns
+- Kafka is the single asynchronous order-event backbone used for event delivery, retry handling, and dead-letter routing in this project
 
 ### 3.12 Micrometer, Prometheus, and Grafana
 
@@ -212,11 +211,10 @@ Used for:
 
 Applied in this project:
 
-- Micrometer publishes business counters plus Spring Kafka and Spring AMQP metrics
+- Micrometer publishes business counters plus Spring Kafka metrics
 - Prometheus scrapes `/actuator/prometheus`
-- Prometheus also scrapes RabbitMQ broker metrics
 - Grafana auto-provisions a Prometheus datasource and an operations dashboard
-- the dashboard surfaces service availability, HTTP error rate, order API latency, RabbitMQ queue depth, Kafka throughput, payment callbacks, refunds, and shipment activity
+- the dashboard surfaces service availability, HTTP error rate, order API latency, Kafka throughput, Kafka reliability, payment callbacks, refunds, and shipment activity
 
 ### 3.13 Stripe Java SDK
 
@@ -375,8 +373,7 @@ Used for:
 
 Applied in this project:
 
-- Compose starts MySQL, Redis, Kafka, RabbitMQ, backend, frontend, Prometheus, and Grafana together
-- Compose also provisions RabbitMQ with management and Prometheus plugins enabled
+- Compose starts MySQL, Redis, Kafka, backend, frontend, Prometheus, and Grafana together
 - service health and dependency ordering support realistic local startup
 - full-stack smoke validation is executed against the Compose runtime
 
@@ -420,7 +417,7 @@ Applied in this project:
 | Admin dashboard | JPA queries, DTO aggregation, React admin UI | operational summary metrics and low-stock watchlist |
 | API documentation | springdoc OpenAPI, Swagger UI | runtime contract discovery and manual API testing |
 | Runtime readiness | Actuator, Docker Compose | health checks and startup validation |
-| Async order events | Spring Kafka, Kafka, Spring AMQP, RabbitMQ, MySQL | publish domain events and persist consumer receipts through both broker styles |
+| Async order events | Spring Kafka, Kafka, MySQL | publish domain events and persist consumer receipts through a single event stream |
 | Observability | Micrometer, Prometheus, Grafana | export counters, health state, latency, and queue depth |
 
 ## 7. Testing and Verification Approach
@@ -436,8 +433,8 @@ Used technologies:
 Current usage:
 
 - service and workflow tests validate order, refund, support, inventory, and security behavior
-- current verified backend test count: `39`
-- a Testcontainers integration test verifies login, cart, order creation, readiness, Kafka receipts, and RabbitMQ receipts against real containers
+- current verified backend test count: `41`
+- a Testcontainers integration test verifies login, cart, order creation, readiness, Kafka receipts, and Kafka dead-letter routing against real containers
 
 ### 7.2 Frontend Verification
 

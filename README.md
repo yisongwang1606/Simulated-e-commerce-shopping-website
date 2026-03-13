@@ -15,13 +15,12 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Flyway database migrations are enabled and currently validated through `V8`.
 - The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, support ticket intake, order tagging, admin order/refund/service-desk review surfaces, and a redesigned admin operations overview.
 - Kafka-backed asynchronous order event capture is enabled.
-- RabbitMQ-backed asynchronous order event capture is enabled alongside Kafka.
 - Prometheus and Grafana are included in the local deployment stack.
 - Stripe test-mode payment provider support is implemented for PaymentIntent creation and webhook intake.
 - Customer checkout now embeds Stripe Elements against customer-owned orders.
-- Kafka and RabbitMQ consumers now retry failed order events and route poison messages into DLT/DLQ paths.
+- Kafka consumers retry failed order events and route poison messages into a dead-letter topic.
 - GitHub Actions CI is configured for backend verify, frontend lint/build, and Docker image builds.
-- Testcontainers integration testing now verifies MySQL, Redis, Kafka, and RabbitMQ in one end-to-end workflow.
+- Testcontainers integration testing now verifies MySQL, Redis, and Kafka in one end-to-end workflow.
 - Local deployment baseline is now included with Dockerfiles, `docker-compose.yml`, environment-variable-driven configuration, and Actuator health probes.
 
 ## Core Capabilities
@@ -50,7 +49,6 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Admin operations summary endpoint for order pressure, support workload, catalog readiness, and low-stock watchlists
 - Kafka order lifecycle event publication and asynchronous receipt storage
 - Kafka retry policy with dead-letter topic routing for failed order events
-- RabbitMQ order lifecycle event publication, retry interception, and dead-letter queue routing
 - Prometheus metrics endpoint and Grafana operations dashboard
 - Frontend admin dashboard with queue metrics, low-stock watchlists, order search filters, order tagging, refund review, and support ticket actions
 - Refined React shell with a more production-like storefront, catalog, and admin visual hierarchy
@@ -67,7 +65,6 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Redis-compatible server  
   Tested locally with Memurai on port `6379`
 - Apache Kafka 4.2
-- RabbitMQ 4.1
 - Prometheus
 - Grafana
 - Stripe Java SDK for test-mode payment provider integration
@@ -86,8 +83,7 @@ Tested local defaults:
 - Database: `ecom_enterprise`
 - Redis: `127.0.0.1:6379`
 - Kafka (Docker): `127.0.0.1:29092`
-- RabbitMQ AMQP (Docker): `127.0.0.1:5672`
-- RabbitMQ Management (Docker): `http://127.0.0.1:15672`
+- Kafka UI (Docker): `http://127.0.0.1:8081`
 - Prometheus (Docker): `http://127.0.0.1:9090`
 - Grafana (Docker): `http://127.0.0.1:3000`
 
@@ -158,6 +154,22 @@ npm run build
 
 ## Run With Docker Compose
 
+> [!WARNING]
+> This project now follows a clean-rebuild Docker workflow by default.
+> Before running Docker-based verification, clear the old Docker environment and rebuild the latest stack:
+>
+> ```powershell
+> .\scripts\rebuild-docker-env.ps1
+> ```
+>
+> This script will:
+> - stop the current project containers
+> - remove attached volumes and orphan containers
+> - prune old Docker images, build cache, networks, and volumes
+> - rebuild and start only the latest version of this project
+>
+> Local Docker WSL storage has also been capped through [`C:\Users\yisongwang\.wslconfig`](C:\Users\yisongwang\.wslconfig) with `defaultVhdSize=10GB` to prevent `C:` drive exhaustion during repeated test cycles.
+
 Copy the root environment template first if you want custom secrets:
 
 ```powershell
@@ -176,9 +188,9 @@ Expected service entry points:
 - Backend API: `http://127.0.0.1:8080`
 - Swagger: `http://127.0.0.1:8080/swagger-ui.html`
 - Health: `http://127.0.0.1:8080/actuator/health/readiness`
+- Kafka UI: `http://127.0.0.1:8081`
 - Prometheus: `http://127.0.0.1:9090`
 - Grafana: `http://127.0.0.1:3000`
-- RabbitMQ Management: `http://127.0.0.1:15672`
 
 ## CI And Integration Testing
 
@@ -193,10 +205,8 @@ The integration test boots:
 - MySQL 8.4
 - Redis 7.4
 - Kafka
-- RabbitMQ
 
-and verifies login, cart, order creation, readiness health, Kafka receipt persistence, and RabbitMQ receipt persistence.
-It also verifies that malformed order events end up in the Kafka dead-letter topic and the RabbitMQ dead-letter queue after retries are exhausted.
+and verifies login, cart, order creation, readiness health, Kafka receipt persistence, and Kafka dead-letter routing for malformed messages.
 
 ## Swagger
 
@@ -383,13 +393,12 @@ Latest backend verification:
 
 Latest verified results:
 
-- 39 backend tests passed
+- 41 backend tests passed
 - Flyway migrations applied through `V8`
 - Actuator readiness endpoint returned `UP`
 - Prometheus target scrape returned `UP`
 - Grafana provisioning loaded the enterprise dashboard
 - Kafka order lifecycle topic was created and consumed successfully
-- RabbitMQ queue metrics and Spring AMQP listener metrics were exposed to Prometheus
 - Real end-to-end local verification covered:
   - admin dashboard summary endpoint
   - address selection at order creation
@@ -433,16 +442,23 @@ Grafana dashboard file:
 
 Current dashboard coverage includes:
 
-- service availability for backend, Prometheus, and RabbitMQ
+- service availability for backend and Prometheus
 - HTTP error rate
 - order API mean latency
-- RabbitMQ queue depth
+- Kafka reliability signals
 - HTTP request rate
 - Kafka throughput
 - order status transition rate
 - refund workflow activity
 - payment callback counters
-- dead-letter queue/topic routing through RabbitMQ DLQ depth and Kafka retry/dead-letter counters
+- dead-letter topic routing through Kafka retry and dead-letter counters
+
+Kafka message inspection:
+
+- Kafka UI: `http://127.0.0.1:8081`
+- Cluster name: `ecom-local`
+- Main topic: `ecom.order.lifecycle.v1`
+- Dead-letter topic: `ecom.order.lifecycle.v1.dlt`
 
 ## Stripe Test Mode
 
@@ -489,5 +505,5 @@ Latest verified Stripe sandbox sample:
 
 - Shipment and refund integrations are still platform-managed placeholders, not production carrier or PSP refund connections.
 - This project is currently implemented as a modular monolith, which is intentional for this phase.
-- Docker Compose has been exercised with MySQL, Redis, Kafka, RabbitMQ, backend, frontend, Prometheus, and Grafana.
+- Docker Compose has been exercised with MySQL, Redis, Kafka, backend, frontend, Prometheus, and Grafana.
 - A live Stripe sandbox call still requires a project-specific `sk_test_...` key and, for webhook verification, a matching `whsec_...` secret. Those secrets are intentionally excluded from version control.

@@ -29,7 +29,6 @@ The current system is implemented as a modular monolith with:
 - MySQL-based business persistence
 - payment, shipment, refund, support, and audit workflows
 - Kafka-backed asynchronous order event processing
-- RabbitMQ-backed asynchronous order event processing
 - Prometheus and Grafana observability baseline
 - GitHub Actions CI baseline
 - Testcontainers integration testing baseline
@@ -106,7 +105,6 @@ The shared backend platform currently includes:
 - Redis-backed token state, cart state, and product ranking state
 - Flyway schema migrations through `V8`
 - Kafka order lifecycle topic and asynchronous receipt persistence
-- RabbitMQ order lifecycle exchange, queue, and asynchronous receipt persistence
 - Prometheus metrics exposure and Grafana dashboard provisioning
 - Swagger/OpenAPI exposure
 - Actuator health checks
@@ -399,9 +397,9 @@ The current implementation includes at least the following entities:
 - Local full-stack container orchestration is supported through Docker Compose.
 - Frontend container is served through nginx.
 - Backend exposes readiness and liveness endpoints through Actuator.
-- Kafka, RabbitMQ, Prometheus, and Grafana are included in the containerized local stack.
+- Kafka, Prometheus, and Grafana are included in the containerized local stack.
 - GitHub Actions validates backend verify, frontend lint/build, and Docker image builds.
-- Testcontainers verifies MySQL, Redis, Kafka, and RabbitMQ through an end-to-end integration test.
+- Testcontainers verifies MySQL, Redis, and Kafka through an end-to-end integration test.
 
 ### 9.3 Documentation Baseline
 
@@ -421,15 +419,15 @@ The current implementation is expected to pass:
 
 The following validation evidence has already been recorded for the current implementation:
 
-- backend automated tests passed: `39`
+- backend automated tests passed: `41`
 - frontend `npm run lint` passed
 - frontend `npm run build` passed
 - Docker Compose runtime came up successfully
 - readiness endpoint returned `UP`
 - Prometheus targets returned `UP`
 - Grafana dashboard provisioning completed successfully
-- RabbitMQ AMQP and management endpoints came up successfully
-- Testcontainers integration test passed against MySQL, Redis, Kafka, and RabbitMQ
+- Kafka broker endpoints came up successfully
+- Testcontainers integration test passed against MySQL, Redis, and Kafka
 - real Stripe sandbox PaymentIntent creation succeeded with platform reconciliation back to `PAID`
 - real smoke flow executed successfully on March 12, 2026
 

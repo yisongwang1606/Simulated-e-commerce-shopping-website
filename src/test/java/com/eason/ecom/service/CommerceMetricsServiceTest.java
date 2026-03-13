@@ -22,8 +22,6 @@ class CommerceMetricsServiceTest {
         commerceMetricsService.incrementPaymentCallback(PaymentStatus.SUCCEEDED);
         commerceMetricsService.incrementKafkaPublished(OrderEventType.ORDER_CREATED);
         commerceMetricsService.incrementKafkaConsumed(OrderEventType.ORDER_CREATED, "stored");
-        commerceMetricsService.incrementRabbitPublished(OrderEventType.ORDER_CREATED);
-        commerceMetricsService.incrementRabbitConsumed(OrderEventType.ORDER_CREATED, "stored");
 
         assertEquals(1.0, meterRegistry.get("ecom.orders.created.events").counter().count());
         assertEquals(1.0, meterRegistry.get("ecom.orders.status.transitions")
@@ -39,14 +37,6 @@ class CommerceMetricsServiceTest {
                 .counter()
                 .count());
         assertEquals(1.0, meterRegistry.get("ecom.kafka.order.events.consumed")
-                .tags("eventType", "ORDER_CREATED", "outcome", "stored")
-                .counter()
-                .count());
-        assertEquals(1.0, meterRegistry.get("ecom.rabbit.order.events.published")
-                .tags("eventType", "ORDER_CREATED")
-                .counter()
-                .count());
-        assertEquals(1.0, meterRegistry.get("ecom.rabbit.order.events.consumed")
                 .tags("eventType", "ORDER_CREATED", "outcome", "stored")
                 .counter()
                 .count());

@@ -7,6 +7,8 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.SerializationException;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +28,9 @@ import org.springframework.kafka.listener.ConsumerRecordRecoverer;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.listener.RetryListener;
+import org.springframework.kafka.support.serializer.DeserializationException;
+import org.springframework.kafka.support.serializer.DelegatingByTypeSerializer;
+import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
@@ -76,6 +81,27 @@ public class KafkaConfig {
     }
 
     @Bean
+    public ProducerFactory<String, Object> orderEventDeadLetterProducerFactory(
+            @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers) {
+        Map<String, Object> properties = new java.util.HashMap<>();
+        properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        return new DefaultKafkaProducerFactory<>(
+                properties,
+                new StringSerializer(),
+                new DelegatingByTypeSerializer(Map.of(
+                        byte[].class, new ByteArraySerializer(),
+                        OrderLifecycleEvent.class, new JacksonJsonSerializer<>(),
+                        String.class, new StringSerializer())));
+    }
+
+    @Bean
+    public KafkaTemplate<String, Object> orderEventDeadLetterKafkaTemplate(
+            ProducerFactory<String, Object> orderEventDeadLetterProducerFactory) {
+        return new KafkaTemplate<>(orderEventDeadLetterProducerFactory);
+    }
+
+    @Bean
     public ConsumerFactory<String, OrderLifecycleEvent> orderEventConsumerFactory(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
             @Value("${app.kafka.consumer-group}") String consumerGroup) {
@@ -83,8 +109,10 @@ public class KafkaConfig {
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup);
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JacksonJsonDeserializer.class);
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        properties.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        properties.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JacksonJsonDeserializer.class);
         properties.put("spring.json.trusted.packages", "com.eason.ecom.messaging");
         properties.put("spring.json.value.default.type", OrderLifecycleEvent.class.getName());
         properties.put("spring.json.use.type.headers", false);
@@ -104,12 +132,12 @@ public class KafkaConfig {
 
     @Bean
     public CommonErrorHandler orderEventKafkaErrorHandler(
-            KafkaTemplate<String, OrderLifecycleEvent> orderEventKafkaTemplate,
+            KafkaTemplate<String, Object> orderEventDeadLetterKafkaTemplate,
             AppProperties appProperties,
             CommerceMetricsService commerceMetricsService) {
         DeadLetterPublishingRecoverer deadLetterPublishingRecoverer =
                 new DeadLetterPublishingRecoverer(
-                        orderEventKafkaTemplate,
+                        orderEventDeadLetterKafkaTemplate,
                         (record, exception) -> new TopicPartition(
                                 appProperties.getKafka().getDeadLetterTopic(),
                                 record.partition()));
@@ -126,6 +154,7 @@ public class KafkaConfig {
                 new FixedBackOff(
                         appProperties.getKafka().getConsumerRetryBackoffMs(),
                         appProperties.getKafka().getConsumerMaxRetries()));
+        errorHandler.addNotRetryableExceptions(SerializationException.class, DeserializationException.class);
         errorHandler.setRetryListeners(new RetryListener() {
             @Override
             public void failedDelivery(

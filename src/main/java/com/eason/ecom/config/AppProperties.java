@@ -14,7 +14,6 @@ public class AppProperties {
     private final Seed seed = new Seed();
     private final Redis redis = new Redis();
     private final Kafka kafka = new Kafka();
-    private final Rabbitmq rabbitmq = new Rabbitmq();
     private final Integrations integrations = new Integrations();
     private final Stripe stripe = new Stripe();
 
@@ -36,10 +35,6 @@ public class AppProperties {
 
     public Kafka getKafka() {
         return kafka;
-    }
-
-    public Rabbitmq getRabbitmq() {
-        return rabbitmq;
     }
 
     public Integrations getIntegrations() {
@@ -229,123 +224,6 @@ public class AppProperties {
 
         public void setConsumerMaxRetries(long consumerMaxRetries) {
             this.consumerMaxRetries = consumerMaxRetries;
-        }
-    }
-
-    public static class Rabbitmq {
-        private boolean enabled;
-        private String exchange = "ecom.order.lifecycle.exchange";
-        private String routingKey = "order.lifecycle";
-        private String orderQueue = "ecom.order.lifecycle.v1.receipts";
-        private String deadLetterExchange;
-        private String deadLetterRoutingKey;
-        private String deadLetterQueue;
-        private String consumerGroup = "ecom-rabbit-order-events";
-        private int consumerMaxAttempts = 3;
-        private long retryInitialIntervalMs = 1_000L;
-        private double retryMultiplier = 2.0d;
-        private long retryMaxIntervalMs = 5_000L;
-
-        public boolean isEnabled() {
-            return enabled;
-        }
-
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
-        }
-
-        public String getExchange() {
-            return exchange;
-        }
-
-        public void setExchange(String exchange) {
-            this.exchange = exchange;
-        }
-
-        public String getRoutingKey() {
-            return routingKey;
-        }
-
-        public void setRoutingKey(String routingKey) {
-            this.routingKey = routingKey;
-        }
-
-        public String getOrderQueue() {
-            return orderQueue;
-        }
-
-        public void setOrderQueue(String orderQueue) {
-            this.orderQueue = orderQueue;
-        }
-
-        public String getDeadLetterExchange() {
-            return deadLetterExchange == null || deadLetterExchange.isBlank()
-                    ? exchange + ".dlx"
-                    : deadLetterExchange;
-        }
-
-        public void setDeadLetterExchange(String deadLetterExchange) {
-            this.deadLetterExchange = deadLetterExchange;
-        }
-
-        public String getDeadLetterRoutingKey() {
-            return deadLetterRoutingKey == null || deadLetterRoutingKey.isBlank()
-                    ? routingKey + ".dead"
-                    : deadLetterRoutingKey;
-        }
-
-        public void setDeadLetterRoutingKey(String deadLetterRoutingKey) {
-            this.deadLetterRoutingKey = deadLetterRoutingKey;
-        }
-
-        public String getDeadLetterQueue() {
-            return deadLetterQueue == null || deadLetterQueue.isBlank()
-                    ? orderQueue + ".dlq"
-                    : deadLetterQueue;
-        }
-
-        public void setDeadLetterQueue(String deadLetterQueue) {
-            this.deadLetterQueue = deadLetterQueue;
-        }
-
-        public String getConsumerGroup() {
-            return consumerGroup;
-        }
-
-        public void setConsumerGroup(String consumerGroup) {
-            this.consumerGroup = consumerGroup;
-        }
-
-        public int getConsumerMaxAttempts() {
-            return consumerMaxAttempts;
-        }
-
-        public void setConsumerMaxAttempts(int consumerMaxAttempts) {
-            this.consumerMaxAttempts = consumerMaxAttempts;
-        }
-
-        public long getRetryInitialIntervalMs() {
-            return retryInitialIntervalMs;
-        }
-
-        public void setRetryInitialIntervalMs(long retryInitialIntervalMs) {
-            this.retryInitialIntervalMs = retryInitialIntervalMs;
-        }
-
-        public double getRetryMultiplier() {
-            return retryMultiplier;
-        }
-
-        public void setRetryMultiplier(double retryMultiplier) {
-            this.retryMultiplier = retryMultiplier;
-        }
-
-        public long getRetryMaxIntervalMs() {
-            return retryMaxIntervalMs;
-        }
-
-        public void setRetryMaxIntervalMs(long retryMaxIntervalMs) {
-            this.retryMaxIntervalMs = retryMaxIntervalMs;
         }
     }
 

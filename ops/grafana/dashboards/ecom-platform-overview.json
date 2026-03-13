@@ -478,7 +478,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "avg by (job) (up{job=~\"prometheus|ecom-backend|rabbitmq\"})",
+          "expr": "avg by (job) (up{job=~\"prometheus|ecom-backend\"})",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -626,20 +626,20 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "rabbitmq_queue_messages_ready",
-          "legendFormat": "ready",
+          "expr": "sum(increase(ecom_kafka_order_events_dead_lettered_total[5m]))",
+          "legendFormat": "dead lettered",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "rabbitmq_queue_messages_unacked",
-          "legendFormat": "unacked",
+          "expr": "sum(increase(ecom_kafka_order_events_retries_total[5m]))",
+          "legendFormat": "retries",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "RabbitMQ Queue Depth",
+      "title": "Kafka Reliability",
       "type": "timeseries"
     }
   ],
