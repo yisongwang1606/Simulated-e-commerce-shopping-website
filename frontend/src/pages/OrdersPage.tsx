@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import {
   createOrderSupportTicket,
+  getOrderPayments,
   createRefundRequest,
   getOrderRefundRequests,
   getOrders,
@@ -10,6 +11,7 @@ import {
 } from '../api/orders'
 import type {
   Order,
+  PaymentTransaction,
   RefundRequest,
   Shipment,
   SupportTicket,
@@ -21,6 +23,7 @@ import { patchIndexedValue, setIndexedValue } from '../shared/state'
 import { EmptyState } from '../shared/ui/EmptyState'
 import { LoadingState } from '../shared/ui/LoadingState'
 import { SectionHeading } from '../shared/ui/SectionHeading'
+import { StripeOrderPaymentPanel } from '../shared/ui/StripeOrderPaymentPanel'
 import { StatusPill } from '../shared/ui/StatusPill'
 
 const refundableStatuses = new Set(['SHIPPED', 'COMPLETED'])
@@ -41,6 +44,9 @@ export function OrdersPage() {
     Record<number, SupportTicketInput>
   >({})
   const [refundsByOrder, setRefundsByOrder] = useState<Record<number, RefundRequest[]>>(
+    {},
+  )
+  const [paymentsByOrder, setPaymentsByOrder] = useState<Record<number, PaymentTransaction[]>>(
     {},
   )
   const [shipmentsByOrder, setShipmentsByOrder] = useState<Record<number, Shipment[]>>(
@@ -84,12 +90,14 @@ export function OrdersPage() {
     setDetailLoadingByOrder((current) => setIndexedValue(current, orderId, true))
 
     try {
-      const [refunds, shipments, supportTickets] = await Promise.all([
+      const [payments, refunds, shipments, supportTickets] = await Promise.all([
+        getOrderPayments(orderId),
         getOrderRefundRequests(orderId),
         getOrderShipments(orderId),
         getOrderSupportTickets(orderId),
       ])
 
+      setPaymentsByOrder((current) => ({ ...current, [orderId]: payments }))
       setRefundsByOrder((current) => ({ ...current, [orderId]: refunds }))
       setShipmentsByOrder((current) => ({ ...current, [orderId]: shipments }))
       setSupportTicketsByOrder((current) => ({
@@ -202,6 +210,7 @@ export function OrdersPage() {
           <div className="order-list">
             {orders.map((order) => {
               const shipments = shipmentsByOrder[order.id] ?? []
+              const payments = paymentsByOrder[order.id] ?? []
               const refundRequests = refundsByOrder[order.id] ?? []
               const supportTickets = supportTicketsByOrder[order.id] ?? []
               const canRequestRefund =
@@ -297,6 +306,16 @@ export function OrdersPage() {
                         <LoadingState title="Loading service events..." />
                       ) : (
                         <div className="service-grid">
+                          <StripeOrderPaymentPanel
+                            onError={setErrorMessage}
+                            onMessage={setMessage}
+                            onPaymentUpdated={async () => {
+                              await Promise.all([loadOrderOperations(order.id), loadOrders()])
+                            }}
+                            order={order}
+                            payments={payments}
+                          />
+
                           <section className="info-card stack">
                             <div className="toolbar">
                               <div>

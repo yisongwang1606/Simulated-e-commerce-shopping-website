@@ -18,6 +18,8 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - RabbitMQ-backed asynchronous order event capture is enabled alongside Kafka.
 - Prometheus and Grafana are included in the local deployment stack.
 - Stripe test-mode payment provider support is implemented for PaymentIntent creation and webhook intake.
+- Customer checkout now embeds Stripe Elements against customer-owned orders.
+- Kafka and RabbitMQ consumers now retry failed order events and route poison messages into DLT/DLQ paths.
 - GitHub Actions CI is configured for backend verify, frontend lint/build, and Docker image builds.
 - Testcontainers integration testing now verifies MySQL, Redis, Kafka, and RabbitMQ in one end-to-end workflow.
 - Local deployment baseline is now included with Dockerfiles, `docker-compose.yml`, environment-variable-driven configuration, and Actuator health probes.
@@ -34,6 +36,7 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Audit log query for operational investigation
 - Simulated payment initiation and payment callback processing
 - Stripe test-mode PaymentIntent initiation with webhook verification support
+- Customer-side Stripe Elements checkout and PaymentIntent reconciliation
 - Shipment creation, delivery confirmation, and order completion flow
 - Customer address book with default address handling
 - Order shipping address snapshot at checkout time
@@ -46,7 +49,8 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Refund summary metrics for the admin dashboard
 - Admin operations summary endpoint for order pressure, support workload, catalog readiness, and low-stock watchlists
 - Kafka order lifecycle event publication and asynchronous receipt storage
-- RabbitMQ order lifecycle event publication and asynchronous receipt storage
+- Kafka retry policy with dead-letter topic routing for failed order events
+- RabbitMQ order lifecycle event publication, retry interception, and dead-letter queue routing
 - Prometheus metrics endpoint and Grafana operations dashboard
 - Frontend admin dashboard with queue metrics, low-stock watchlists, order search filters, order tagging, refund review, and support ticket actions
 - Refined React shell with a more production-like storefront, catalog, and admin visual hierarchy
@@ -192,6 +196,7 @@ The integration test boots:
 - RabbitMQ
 
 and verifies login, cart, order creation, readiness health, Kafka receipt persistence, and RabbitMQ receipt persistence.
+It also verifies that malformed order events end up in the Kafka dead-letter topic and the RabbitMQ dead-letter queue after retries are exhausted.
 
 ## Swagger
 
@@ -263,6 +268,9 @@ Orders and Customer Order Services:
 - `POST /api/orders`
 - `GET /api/orders`
 - `GET /api/orders/{orderId}`
+- `GET /api/orders/{orderId}/payments`
+- `POST /api/orders/{orderId}/payments/stripe-intent`
+- `POST /api/orders/{orderId}/payments/stripe-reconcile`
 - `GET /api/orders/{orderId}/shipments`
 - `POST /api/orders/{orderId}/refund-requests`
 - `GET /api/orders/{orderId}/refund-requests`
@@ -434,6 +442,7 @@ Current dashboard coverage includes:
 - order status transition rate
 - refund workflow activity
 - payment callback counters
+- dead-letter queue/topic routing through RabbitMQ DLQ depth and Kafka retry/dead-letter counters
 
 ## Stripe Test Mode
 
@@ -461,6 +470,12 @@ Example admin payment request:
 ```
 
 This path will create a Stripe PaymentIntent in test mode. If the request is confirmed immediately with `pm_card_visa`, the platform will mark the payment as settled without waiting for a separate callback. Webhook support remains available for later asynchronous events.
+
+Customer checkout path:
+
+- `POST /api/orders/{orderId}/payments/stripe-intent` creates a Stripe PaymentIntent and returns `clientSecret`
+- React mounts Stripe Elements inside the customer orders workspace
+- `POST /api/orders/{orderId}/payments/stripe-reconcile` pulls the latest PaymentIntent status back into the order workflow after `stripe.confirmPayment(...)`
 
 Latest verified Stripe sandbox sample:
 

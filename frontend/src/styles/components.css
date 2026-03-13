@@ -703,6 +703,42 @@
   gap: 16px;
 }
 
+.stripe-payment-panel {
+  align-content: start;
+}
+
+.payment-panel-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.payment-history {
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.payment-row {
+  align-items: center;
+}
+
+.stripe-payment-form {
+  gap: 16px;
+}
+
+.stripe-element-shell {
+  padding: 14px 16px;
+  border: 1px solid rgba(24, 33, 29, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.stripe-pay-actions {
+  display: grid;
+  gap: 10px;
+}
+
 .detail-row {
   padding: 12px 0;
   border-top: 1px solid rgba(24, 33, 29, 0.08);
@@ -946,7 +982,8 @@ th {
   }
 
   .service-grid,
-  .order-metric-grid {
+  .order-metric-grid,
+  .payment-panel-summary {
     grid-template-columns: 1fr;
   }
 

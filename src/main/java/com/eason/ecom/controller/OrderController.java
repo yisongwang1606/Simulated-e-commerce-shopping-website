@@ -14,14 +14,18 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.eason.ecom.dto.ApiResponse;
 import com.eason.ecom.dto.CreateOrderRequest;
+import com.eason.ecom.dto.CustomerStripePaymentIntentRequest;
 import com.eason.ecom.dto.OrderResponse;
+import com.eason.ecom.dto.PaymentTransactionResponse;
 import com.eason.ecom.dto.RefundRequestCreateRequest;
 import com.eason.ecom.dto.RefundRequestResponse;
 import com.eason.ecom.dto.ShipmentResponse;
+import com.eason.ecom.dto.StripePaymentReconcileRequest;
 import com.eason.ecom.dto.SupportTicketCreateRequest;
 import com.eason.ecom.dto.SupportTicketResponse;
 import com.eason.ecom.security.AuthenticatedUser;
 import com.eason.ecom.service.OrderService;
+import com.eason.ecom.service.PaymentService;
 import com.eason.ecom.service.RefundService;
 import com.eason.ecom.service.ShipmentService;
 import com.eason.ecom.service.SupportTicketService;
@@ -40,16 +44,19 @@ import jakarta.validation.constraints.Positive;
 public class OrderController {
 
     private final OrderService orderService;
+    private final PaymentService paymentService;
     private final ShipmentService shipmentService;
     private final RefundService refundService;
     private final SupportTicketService supportTicketService;
 
     public OrderController(
             OrderService orderService,
+            PaymentService paymentService,
             ShipmentService shipmentService,
             RefundService refundService,
             SupportTicketService supportTicketService) {
         this.orderService = orderService;
+        this.paymentService = paymentService;
         this.shipmentService = shipmentService;
         this.refundService = refundService;
         this.supportTicketService = supportTicketService;
@@ -116,6 +123,69 @@ public class OrderController {
             @Parameter(description = "Order identifier", example = "1")
             @PathVariable @Positive Long orderId) {
         return ApiResponseFactory.ok(shipmentService.getShipmentsForCustomer(authenticatedUser.getId(), orderId));
+    }
+
+    @Operation(
+            summary = "List payment transactions for one order",
+            description = "Returns the authenticated customer's payment attempts for the selected order, including Stripe-backed checkout intents.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment transactions loaded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found")
+    })
+    @GetMapping("/{orderId}/payments")
+    public ResponseEntity<ApiResponse<List<PaymentTransactionResponse>>> getPayments(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "Order identifier", example = "1")
+            @PathVariable @Positive Long orderId) {
+        return ApiResponseFactory.ok(paymentService.getPaymentsForCustomer(authenticatedUser.getId(), orderId));
+    }
+
+    @Operation(
+            summary = "Create a Stripe PaymentIntent for one order",
+            description = "Creates a customer-facing Stripe PaymentIntent for an order that is still waiting for payment and returns the client secret needed by Stripe Elements.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Stripe payment intent created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Order is not payable or Stripe is not configured"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found")
+    })
+    @PostMapping("/{orderId}/payments/stripe-intent")
+    public ResponseEntity<ApiResponse<PaymentTransactionResponse>> createStripePaymentIntent(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "Order identifier", example = "1")
+            @PathVariable @Positive Long orderId,
+            @RequestBody(required = false) @Validated CustomerStripePaymentIntentRequest request) {
+        return ApiResponseFactory.created(
+                "Stripe payment intent created successfully",
+                paymentService.initiateCustomerStripePayment(
+                        authenticatedUser.getId(),
+                        authenticatedUser.getUsername(),
+                        orderId,
+                        request));
+    }
+
+    @Operation(
+            summary = "Reconcile a Stripe PaymentIntent after client-side confirmation",
+            description = "Reads the latest Stripe PaymentIntent state after Stripe Elements confirms the card and synchronizes the internal payment and order status.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stripe payment synchronized"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Stripe reference is invalid or the payment cannot be synchronized"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order or payment not found")
+    })
+    @PostMapping("/{orderId}/payments/stripe-reconcile")
+    public ResponseEntity<ApiResponse<PaymentTransactionResponse>> reconcileStripePayment(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "Order identifier", example = "1")
+            @PathVariable @Positive Long orderId,
+            @RequestBody @Validated StripePaymentReconcileRequest request) {
+        return ApiResponseFactory.ok(
+                "Stripe payment synchronized successfully",
+                paymentService.reconcileCustomerStripePayment(
+                        authenticatedUser.getId(),
+                        orderId,
+                        request));
     }
 
     @Operation(

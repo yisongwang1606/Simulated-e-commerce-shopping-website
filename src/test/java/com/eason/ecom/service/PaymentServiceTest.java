@@ -217,6 +217,72 @@ class PaymentServiceTest {
                 any());
     }
 
+    @Test
+    void initiateCustomerStripePaymentUsesOrderTotalAndReturnsClientSecret() {
+        CustomerOrder customerOrder = buildOrder(55L, OrderStatus.CREATED);
+        when(customerOrderRepository.findByIdAndUserId(55L, 2L)).thenReturn(Optional.of(customerOrder));
+        when(customerOrderRepository.findWithDetailsById(55L)).thenReturn(Optional.of(customerOrder));
+        when(paymentTransactionRepository.existsByOrderIdAndPaymentStatus(55L, PaymentStatus.SUCCEEDED)).thenReturn(false);
+        when(paymentReferenceGenerator.next()).thenReturn("PAY-20260312150000000-3333");
+        when(stripePaymentGateway.createPaymentIntent(any(CustomerOrder.class), any(PaymentTransaction.class), any(PaymentInitiationRequest.class)))
+                .thenReturn(new StripePaymentIntentResult(
+                        "pi_test_customer_001",
+                        "pi_test_customer_001_secret",
+                        "PENDING",
+                        "Stripe PaymentIntent status: requires_payment_method"));
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenAnswer(invocation -> {
+            PaymentTransaction paymentTransaction = invocation.getArgument(0);
+            paymentTransaction.setId(15L);
+            paymentTransaction.setCreatedAt(LocalDateTime.of(2026, 3, 12, 15, 10));
+            paymentTransaction.setUpdatedAt(LocalDateTime.of(2026, 3, 12, 15, 10));
+            return paymentTransaction;
+        });
+
+        PaymentTransactionResponse response = paymentService.initiateCustomerStripePayment(
+                2L,
+                "demo",
+                55L,
+                null);
+
+        assertEquals(BigDecimal.valueOf(129.99), response.amount());
+        assertEquals("STRIPE", response.providerCode());
+        assertEquals("pi_test_customer_001_secret", response.clientSecret());
+    }
+
+    @Test
+    void reconcileCustomerStripePaymentMovesOrderToPaid() {
+        CustomerOrder customerOrder = buildOrder(55L, OrderStatus.PAYMENT_PENDING);
+        PaymentTransaction paymentTransaction = buildPayment(customerOrder);
+        paymentTransaction.setProviderCode("STRIPE");
+        paymentTransaction.setProviderReference("pi_test_123");
+        when(customerOrderRepository.findByIdAndUserId(55L, 2L)).thenReturn(Optional.of(customerOrder));
+        when(paymentTransactionRepository.findByOrderIdAndProviderReference(55L, "pi_test_123"))
+                .thenReturn(Optional.of(paymentTransaction));
+        when(paymentTransactionRepository.findByTransactionRef("PAY-20260312150000000-1111"))
+                .thenReturn(Optional.of(paymentTransaction));
+        when(stripePaymentGateway.getPaymentIntent("pi_test_123"))
+                .thenReturn(new StripePaymentIntentResult(
+                        "pi_test_123",
+                        "pi_test_123_secret",
+                        "SUCCEEDED",
+                        "Stripe PaymentIntent status: succeeded"));
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PaymentTransactionResponse response = paymentService.reconcileCustomerStripePayment(
+                2L,
+                55L,
+                new com.eason.ecom.dto.StripePaymentReconcileRequest("pi_test_123"));
+
+        assertEquals("SUCCEEDED", response.paymentStatus());
+        assertEquals("pi_test_123_secret", response.clientSecret());
+        verify(orderService).updateOrderStatusForAdmin(
+                55L,
+                OrderStatus.PAID.name(),
+                "Payment callback confirmed settlement",
+                null,
+                "payment-callback");
+    }
+
     private CustomerOrder buildOrder(Long id, OrderStatus status) {
         CustomerOrder customerOrder = new CustomerOrder();
         customerOrder.setId(id);

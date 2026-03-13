@@ -9,8 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.eason.ecom.dto.PaymentCallbackRequest;
+import com.eason.ecom.dto.CustomerStripePaymentIntentRequest;
 import com.eason.ecom.dto.PaymentInitiationRequest;
 import com.eason.ecom.dto.PaymentTransactionResponse;
+import com.eason.ecom.dto.StripePaymentReconcileRequest;
 import com.eason.ecom.entity.CustomerOrder;
 import com.eason.ecom.entity.OrderStatus;
 import com.eason.ecom.entity.PaymentMethod;
@@ -154,6 +156,27 @@ public class PaymentService {
     }
 
     @Transactional
+    public PaymentTransactionResponse initiateCustomerStripePayment(
+            Long userId,
+            String actorUsername,
+            Long orderId,
+            CustomerStripePaymentIntentRequest request) {
+        CustomerOrder customerOrder = getOwnedOrder(userId, orderId);
+        return initiatePayment(
+                orderId,
+                new PaymentInitiationRequest(
+                        PaymentMethod.CARD.name(),
+                        customerOrder.getTotalAmount(),
+                        "STRIPE",
+                        null,
+                        null,
+                        false,
+                        resolveCustomerStripeNote(request)),
+                userId,
+                actorUsername);
+    }
+
+    @Transactional
     public PaymentTransactionResponse handleCallback(PaymentCallbackRequest request) {
         PaymentTransaction paymentTransaction = paymentTransactionRepository.findByTransactionRef(request.transactionRef())
                 .orElseThrow(() -> new ResourceNotFoundException("Payment transaction not found"));
@@ -214,6 +237,36 @@ public class PaymentService {
         return paymentTransactionRepository.findByOrderIdOrderByCreatedAtDesc(orderId).stream()
                 .map(transaction -> toResponse(transaction, null))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentTransactionResponse> getPaymentsForCustomer(Long userId, Long orderId) {
+        getOwnedOrder(userId, orderId);
+        return getPaymentsForOrder(orderId);
+    }
+
+    @Transactional
+    public PaymentTransactionResponse reconcileCustomerStripePayment(
+            Long userId,
+            Long orderId,
+            StripePaymentReconcileRequest request) {
+        getOwnedOrder(userId, orderId);
+        PaymentTransaction paymentTransaction = paymentTransactionRepository.findByOrderIdAndProviderReference(
+                        orderId,
+                        normalizeRequired(request.providerReference(), "providerReference"))
+                .orElseThrow(() -> new ResourceNotFoundException("Stripe payment transaction not found"));
+        if (!"STRIPE".equals(paymentTransaction.getProviderCode())) {
+            throw new BadRequestException("Stripe reconciliation is only available for Stripe-backed payments");
+        }
+        StripePaymentIntentResult paymentIntentResult =
+                stripePaymentGateway.getPaymentIntent(paymentTransaction.getProviderReference());
+        PaymentTransactionResponse response = handleCallback(new PaymentCallbackRequest(
+                paymentTransaction.getTransactionRef(),
+                paymentIntentResult.paymentStatus(),
+                paymentIntentResult.providerReference(),
+                paymentTransaction.getProviderCode(),
+                paymentIntentResult.note()));
+        return withClientSecret(response, paymentIntentResult.clientSecret());
     }
 
     @Transactional
@@ -324,6 +377,26 @@ public class PaymentService {
 
     private String normalizeOptional(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private String normalizeRequired(String value, String fieldName) {
+        String normalizedValue = normalizeOptional(value);
+        if (normalizedValue == null) {
+            throw new BadRequestException(fieldName + " must not be blank");
+        }
+        return normalizedValue;
+    }
+
+    private CustomerOrder getOwnedOrder(Long userId, Long orderId) {
+        return customerOrderRepository.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+    }
+
+    private String resolveCustomerStripeNote(CustomerStripePaymentIntentRequest request) {
+        String requestedNote = request == null ? null : normalizeOptional(request.note());
+        return requestedNote == null
+                ? "Customer checkout via Stripe Elements"
+                : requestedNote;
     }
 
     private PaymentTransactionResponse toResponse(

@@ -179,6 +179,32 @@ export interface CreateOrderInput {
   addressId?: number
 }
 
+export interface PaymentTransaction {
+  id: number
+  orderId: number
+  orderNo: string
+  paymentMethod: string
+  paymentStatus: string
+  transactionRef: string
+  providerCode: string
+  providerEventId: string | null
+  providerReference: string | null
+  amount: number
+  clientSecret: string | null
+  note: string | null
+  createdAt: string
+  paidAt: string | null
+  updatedAt: string
+}
+
+export interface CustomerStripePaymentIntentInput {
+  note?: string
+}
+
+export interface StripePaymentReconcileInput {
+  providerReference: string
+}
+
 export interface Shipment {
   id: number
   orderId: number

@@ -3,13 +3,21 @@ package com.eason.ecom.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.common.TopicPartition;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +32,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import com.eason.ecom.config.AppProperties;
+import com.eason.ecom.messaging.OrderEventType;
+import com.eason.ecom.messaging.OrderLifecycleEvent;
 import com.eason.ecom.repository.OrderEventReceiptRepository;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import tools.jackson.databind.JsonNode;
 
@@ -78,6 +91,15 @@ class EnterpriseWorkflowIT {
     @Autowired
     private OrderEventReceiptRepository orderEventReceiptRepository;
 
+    @Autowired
+    private KafkaTemplate<String, OrderLifecycleEvent> orderEventKafkaTemplate;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private AppProperties appProperties;
+
     @Test
     void createsOrderAndPersistsKafkaAndRabbitReceipts() {
         String token = loginAndGetToken("demo@ecom.local", "Demo123!");
@@ -120,6 +142,34 @@ class EnterpriseWorkflowIT {
         assertThat(readinessResponse.getBody().path("status").asText()).isEqualTo("UP");
     }
 
+    @Test
+    void routesInvalidMessagesToKafkaDltAndRabbitDlq() throws Exception {
+        OrderLifecycleEvent invalidEvent = new OrderLifecycleEvent(
+                UUID.randomUUID().toString(),
+                OrderEventType.ORDER_CREATED,
+                9999L,
+                null,
+                "CREATED",
+                "integration-test",
+                "integration-test",
+                Instant.now(),
+                Map.of("scenario", "dead-letter"));
+
+        orderEventKafkaTemplate.send(kafkaOrderTopic(), "dead-letter-order", invalidEvent)
+                .get(10, TimeUnit.SECONDS);
+        orderEventKafkaTemplate.flush();
+        rabbitTemplate.convertAndSend(rabbitExchange(), rabbitRoutingKey(), invalidEvent);
+
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .untilAsserted(() -> {
+                    assertThat(readKafkaTopicMessageCount(appProperties.getKafka().getDeadLetterTopic()))
+                            .isGreaterThanOrEqualTo(1L);
+                    assertThat(readRabbitQueueMessageCount(appProperties.getRabbitmq().getDeadLetterQueue()))
+                            .isGreaterThanOrEqualTo(1L);
+                });
+    }
+
     private String loginAndGetToken(String username, String password) {
         ResponseEntity<JsonNode> loginResponse = restClient().post()
                 .uri("/api/auth/login")
@@ -142,5 +192,44 @@ class EnterpriseWorkflowIT {
         return RestClient.builder()
                 .baseUrl("http://127.0.0.1:" + port)
                 .build();
+    }
+
+    private String kafkaOrderTopic() {
+        return appProperties.getKafka().getOrderTopic();
+    }
+
+    private String rabbitExchange() {
+        return appProperties.getRabbitmq().getExchange();
+    }
+
+    private String rabbitRoutingKey() {
+        return appProperties.getRabbitmq().getRoutingKey();
+    }
+
+    private long readKafkaTopicMessageCount(String topic) throws Exception {
+        try (AdminClient adminClient = AdminClient.create(Map.of(
+                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
+                KAFKA.getBootstrapServers()))) {
+            Map<TopicPartition, OffsetSpec> offsetRequests = new java.util.HashMap<>();
+            adminClient.describeTopics(List.of(topic)).allTopicNames().get(10, TimeUnit.SECONDS)
+                    .get(topic)
+                    .partitions()
+                    .forEach(partition -> offsetRequests.put(
+                            new TopicPartition(topic, partition.partition()),
+                            OffsetSpec.latest()));
+            return adminClient.listOffsets(offsetRequests)
+                    .all()
+                    .get(10, TimeUnit.SECONDS)
+                    .values()
+                    .stream()
+                    .mapToLong(result -> result.offset())
+                    .sum();
+        }
+    }
+
+    private long readRabbitQueueMessageCount(String queueName) {
+        Number messageCount = rabbitTemplate.execute(
+                channel -> Integer.valueOf(channel.queueDeclarePassive(queueName).getMessageCount()));
+        return messageCount == null ? 0L : messageCount.longValue();
     }
 }

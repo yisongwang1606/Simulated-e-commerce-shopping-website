@@ -71,6 +71,14 @@ public class CommerceMetricsService {
                 "outcome", outcome).increment();
     }
 
+    public void incrementKafkaRetry(OrderEventType eventType) {
+        meterRegistry.counter("ecom.kafka.order.events.retries", "eventType", eventType.name()).increment();
+    }
+
+    public void incrementKafkaDeadLetter(OrderEventType eventType) {
+        meterRegistry.counter("ecom.kafka.order.events.dead.lettered", "eventType", eventType.name()).increment();
+    }
+
     public void incrementRabbitPublished(OrderEventType eventType) {
         meterRegistry.counter("ecom.rabbit.order.events.published", "eventType", eventType.name()).increment();
     }
@@ -84,5 +92,9 @@ public class CommerceMetricsService {
                 "ecom.rabbit.order.events.consumed",
                 "eventType", eventType.name(),
                 "outcome", outcome).increment();
+    }
+
+    public void incrementRabbitDeadLetter(OrderEventType eventType) {
+        meterRegistry.counter("ecom.rabbit.order.events.dead.lettered", "eventType", eventType.name()).increment();
     }
 }

@@ -6,6 +6,7 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,12 +22,16 @@ import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.CommonErrorHandler;
+import org.springframework.kafka.listener.ConsumerRecordRecoverer;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.RetryListener;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 import com.eason.ecom.messaging.OrderLifecycleEvent;
+import com.eason.ecom.service.CommerceMetricsService;
 
 @Configuration
 @EnableKafka
@@ -40,6 +45,14 @@ public class KafkaConfig {
     @Bean
     public NewTopic orderLifecycleTopic(AppProperties appProperties) {
         return TopicBuilder.name(appProperties.getKafka().getOrderTopic())
+                .partitions(appProperties.getKafka().getTopicPartitions())
+                .replicas(appProperties.getKafka().getTopicReplicas())
+                .build();
+    }
+
+    @Bean
+    public NewTopic orderLifecycleDeadLetterTopic(AppProperties appProperties) {
+        return TopicBuilder.name(appProperties.getKafka().getDeadLetterTopic())
                 .partitions(appProperties.getKafka().getTopicPartitions())
                 .replicas(appProperties.getKafka().getTopicReplicas())
                 .build();
@@ -90,7 +103,40 @@ public class KafkaConfig {
     }
 
     @Bean
-    public CommonErrorHandler orderEventKafkaErrorHandler() {
-        return new DefaultErrorHandler(new FixedBackOff(1_000L, 2L));
+    public CommonErrorHandler orderEventKafkaErrorHandler(
+            KafkaTemplate<String, OrderLifecycleEvent> orderEventKafkaTemplate,
+            AppProperties appProperties,
+            CommerceMetricsService commerceMetricsService) {
+        DeadLetterPublishingRecoverer deadLetterPublishingRecoverer =
+                new DeadLetterPublishingRecoverer(
+                        orderEventKafkaTemplate,
+                        (record, exception) -> new TopicPartition(
+                                appProperties.getKafka().getDeadLetterTopic(),
+                                record.partition()));
+        ConsumerRecordRecoverer consumerRecordRecoverer = (record, exception) -> {
+            OrderLifecycleEvent event = record.value() instanceof OrderLifecycleEvent payload ? payload : null;
+            if (event != null && event.eventType() != null) {
+                commerceMetricsService.incrementKafkaDeadLetter(event.eventType());
+            }
+            deadLetterPublishingRecoverer.accept(record, null, exception);
+        };
+
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(
+                consumerRecordRecoverer,
+                new FixedBackOff(
+                        appProperties.getKafka().getConsumerRetryBackoffMs(),
+                        appProperties.getKafka().getConsumerMaxRetries()));
+        errorHandler.setRetryListeners(new RetryListener() {
+            @Override
+            public void failedDelivery(
+                    org.apache.kafka.clients.consumer.ConsumerRecord<?, ?> record,
+                    Exception exception,
+                    int deliveryAttempt) {
+                if (record.value() instanceof OrderLifecycleEvent event && event.eventType() != null) {
+                    commerceMetricsService.incrementKafkaRetry(event.eventType());
+                }
+            }
+        });
+        return errorHandler;
     }
 }

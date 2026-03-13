@@ -13,5 +13,7 @@ public interface StripePaymentGateway {
             PaymentTransaction paymentTransaction,
             PaymentInitiationRequest request);
 
+    StripePaymentIntentResult getPaymentIntent(String providerReference);
+
     StripeWebhookResult parseWebhook(String payload, String signatureHeader);
 }

@@ -2,10 +2,13 @@ import { apiClient } from './client'
 import type {
   ApiResponse,
   CreateOrderInput,
+  CustomerStripePaymentIntentInput,
   Order,
+  PaymentTransaction,
   RefundRequest,
   RefundRequestInput,
   Shipment,
+  StripePaymentReconcileInput,
   SupportTicket,
   SupportTicketInput,
 } from './contracts'
@@ -27,6 +30,44 @@ export async function createOrder(payload?: CreateOrderInput): Promise<Order> {
 export async function getOrderShipments(orderId: number): Promise<Shipment[]> {
   const { data } = await apiClient.get<ApiResponse<Shipment[]>>(
     `/api/orders/${orderId}/shipments`,
+  )
+
+  return data.data
+}
+
+export async function getOrderPayments(
+  orderId: number,
+): Promise<PaymentTransaction[]> {
+  const { data } = await apiClient.get<ApiResponse<PaymentTransaction[]>>(
+    `/api/orders/${orderId}/payments`,
+  )
+
+  return data.data
+}
+
+export async function createOrderStripePaymentIntent(
+  orderId: number,
+  payload?: CustomerStripePaymentIntentInput,
+): Promise<PaymentTransaction> {
+  const { data } = payload
+    ? await apiClient.post<ApiResponse<PaymentTransaction>>(
+        `/api/orders/${orderId}/payments/stripe-intent`,
+        payload,
+      )
+    : await apiClient.post<ApiResponse<PaymentTransaction>>(
+        `/api/orders/${orderId}/payments/stripe-intent`,
+      )
+
+  return data.data
+}
+
+export async function reconcileOrderStripePayment(
+  orderId: number,
+  payload: StripePaymentReconcileInput,
+): Promise<PaymentTransaction> {
+  const { data } = await apiClient.post<ApiResponse<PaymentTransaction>>(
+    `/api/orders/${orderId}/payments/stripe-reconcile`,
+    payload,
   )
 
   return data.data

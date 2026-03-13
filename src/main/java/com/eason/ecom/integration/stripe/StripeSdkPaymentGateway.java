@@ -82,6 +82,28 @@ public class StripeSdkPaymentGateway implements StripePaymentGateway {
     }
 
     @Override
+    public StripePaymentIntentResult getPaymentIntent(String providerReference) {
+        ensureStripeConfigured();
+        if (!StringUtils.hasText(providerReference)) {
+            throw new BadRequestException("Stripe payment reference is required");
+        }
+        try {
+            PaymentIntent paymentIntent = PaymentIntent.retrieve(
+                    providerReference.trim(),
+                    RequestOptions.builder()
+                            .setApiKey(appProperties.getStripe().getSecretKey())
+                            .build());
+            return new StripePaymentIntentResult(
+                    paymentIntent.getId(),
+                    paymentIntent.getClientSecret(),
+                    resolvePaymentStatus(paymentIntent, false),
+                    resolveIntentNote(paymentIntent));
+        } catch (StripeException exception) {
+            throw new BadRequestException("Stripe payment lookup failed: " + exception.getMessage());
+        }
+    }
+
+    @Override
     public StripeWebhookResult parseWebhook(String payload, String signatureHeader) {
         ensureWebhookConfigured(signatureHeader);
         try {

@@ -166,9 +166,12 @@ public class AppProperties {
 
     public static class Kafka {
         private String orderTopic = "ecom.order.lifecycle.v1";
+        private String deadLetterTopic;
         private String consumerGroup = "ecom-order-events";
         private int topicPartitions = 3;
         private short topicReplicas = 1;
+        private long consumerRetryBackoffMs = 1_000L;
+        private long consumerMaxRetries = 3L;
 
         public String getOrderTopic() {
             return orderTopic;
@@ -176,6 +179,16 @@ public class AppProperties {
 
         public void setOrderTopic(String orderTopic) {
             this.orderTopic = orderTopic;
+        }
+
+        public String getDeadLetterTopic() {
+            return deadLetterTopic == null || deadLetterTopic.isBlank()
+                    ? orderTopic + ".dlt"
+                    : deadLetterTopic;
+        }
+
+        public void setDeadLetterTopic(String deadLetterTopic) {
+            this.deadLetterTopic = deadLetterTopic;
         }
 
         public String getConsumerGroup() {
@@ -201,6 +214,22 @@ public class AppProperties {
         public void setTopicReplicas(short topicReplicas) {
             this.topicReplicas = topicReplicas;
         }
+
+        public long getConsumerRetryBackoffMs() {
+            return consumerRetryBackoffMs;
+        }
+
+        public void setConsumerRetryBackoffMs(long consumerRetryBackoffMs) {
+            this.consumerRetryBackoffMs = consumerRetryBackoffMs;
+        }
+
+        public long getConsumerMaxRetries() {
+            return consumerMaxRetries;
+        }
+
+        public void setConsumerMaxRetries(long consumerMaxRetries) {
+            this.consumerMaxRetries = consumerMaxRetries;
+        }
     }
 
     public static class Rabbitmq {
@@ -208,7 +237,14 @@ public class AppProperties {
         private String exchange = "ecom.order.lifecycle.exchange";
         private String routingKey = "order.lifecycle";
         private String orderQueue = "ecom.order.lifecycle.v1.receipts";
+        private String deadLetterExchange;
+        private String deadLetterRoutingKey;
+        private String deadLetterQueue;
         private String consumerGroup = "ecom-rabbit-order-events";
+        private int consumerMaxAttempts = 3;
+        private long retryInitialIntervalMs = 1_000L;
+        private double retryMultiplier = 2.0d;
+        private long retryMaxIntervalMs = 5_000L;
 
         public boolean isEnabled() {
             return enabled;
@@ -242,12 +278,74 @@ public class AppProperties {
             this.orderQueue = orderQueue;
         }
 
+        public String getDeadLetterExchange() {
+            return deadLetterExchange == null || deadLetterExchange.isBlank()
+                    ? exchange + ".dlx"
+                    : deadLetterExchange;
+        }
+
+        public void setDeadLetterExchange(String deadLetterExchange) {
+            this.deadLetterExchange = deadLetterExchange;
+        }
+
+        public String getDeadLetterRoutingKey() {
+            return deadLetterRoutingKey == null || deadLetterRoutingKey.isBlank()
+                    ? routingKey + ".dead"
+                    : deadLetterRoutingKey;
+        }
+
+        public void setDeadLetterRoutingKey(String deadLetterRoutingKey) {
+            this.deadLetterRoutingKey = deadLetterRoutingKey;
+        }
+
+        public String getDeadLetterQueue() {
+            return deadLetterQueue == null || deadLetterQueue.isBlank()
+                    ? orderQueue + ".dlq"
+                    : deadLetterQueue;
+        }
+
+        public void setDeadLetterQueue(String deadLetterQueue) {
+            this.deadLetterQueue = deadLetterQueue;
+        }
+
         public String getConsumerGroup() {
             return consumerGroup;
         }
 
         public void setConsumerGroup(String consumerGroup) {
             this.consumerGroup = consumerGroup;
+        }
+
+        public int getConsumerMaxAttempts() {
+            return consumerMaxAttempts;
+        }
+
+        public void setConsumerMaxAttempts(int consumerMaxAttempts) {
+            this.consumerMaxAttempts = consumerMaxAttempts;
+        }
+
+        public long getRetryInitialIntervalMs() {
+            return retryInitialIntervalMs;
+        }
+
+        public void setRetryInitialIntervalMs(long retryInitialIntervalMs) {
+            this.retryInitialIntervalMs = retryInitialIntervalMs;
+        }
+
+        public double getRetryMultiplier() {
+            return retryMultiplier;
+        }
+
+        public void setRetryMultiplier(double retryMultiplier) {
+            this.retryMultiplier = retryMultiplier;
+        }
+
+        public long getRetryMaxIntervalMs() {
+            return retryMaxIntervalMs;
+        }
+
+        public void setRetryMaxIntervalMs(long retryMaxIntervalMs) {
+            this.retryMaxIntervalMs = retryMaxIntervalMs;
         }
     }
 
