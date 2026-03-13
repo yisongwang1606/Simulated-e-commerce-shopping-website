@@ -4,7 +4,7 @@
 
 This document explains the technologies currently used by the Enterprise Commerce Platform and describes how each technology is applied in the actual implementation.
 
-It is aligned to the current repository, Docker runtime, and verified system behavior as of March 12, 2026.
+It is aligned to the current repository, Docker runtime, and verified system behavior as of March 13, 2026.
 
 ## 2. Solution Overview
 
@@ -20,8 +20,11 @@ The solution includes:
 - MySQL relational persistence
 - Redis operational state storage
 - Kafka asynchronous event transport
+- RabbitMQ asynchronous event transport
 - Prometheus metrics collection
 - Grafana dashboard visualization
+- GitHub Actions CI execution
+- Testcontainers integration testing
 - Docker-based local deployment
 
 ## 3. Backend Technologies and Usage
@@ -197,6 +200,7 @@ Applied in this project:
 - order, payment, shipment, and refund flows publish lifecycle events to Kafka
 - a dedicated consumer group stores event receipt records in MySQL for operational traceability
 - Docker Compose provisions the Kafka broker used by the local stack
+- RabbitMQ runs in parallel for the same order lifecycle events so broker wiring can be exercised through both streaming and queue-based delivery patterns
 
 ### 3.12 Micrometer, Prometheus, and Grafana
 
@@ -208,10 +212,11 @@ Used for:
 
 Applied in this project:
 
-- Micrometer publishes business counters and Spring Kafka metrics
+- Micrometer publishes business counters plus Spring Kafka and Spring AMQP metrics
 - Prometheus scrapes `/actuator/prometheus`
+- Prometheus also scrapes RabbitMQ broker metrics
 - Grafana auto-provisions a Prometheus datasource and an operations dashboard
-- the dashboard surfaces order throughput, Kafka event volume, payment callbacks, refunds, and shipment activity
+- the dashboard surfaces service availability, HTTP error rate, order API latency, RabbitMQ queue depth, Kafka throughput, payment callbacks, refunds, and shipment activity
 
 ### 3.13 Stripe Java SDK
 
@@ -370,7 +375,8 @@ Used for:
 
 Applied in this project:
 
-- Compose starts MySQL, Redis, Kafka, backend, frontend, Prometheus, and Grafana together
+- Compose starts MySQL, Redis, Kafka, RabbitMQ, backend, frontend, Prometheus, and Grafana together
+- Compose also provisions RabbitMQ with management and Prometheus plugins enabled
 - service health and dependency ordering support realistic local startup
 - full-stack smoke validation is executed against the Compose runtime
 
@@ -414,8 +420,8 @@ Applied in this project:
 | Admin dashboard | JPA queries, DTO aggregation, React admin UI | operational summary metrics and low-stock watchlist |
 | API documentation | springdoc OpenAPI, Swagger UI | runtime contract discovery and manual API testing |
 | Runtime readiness | Actuator, Docker Compose | health checks and startup validation |
-| Async order events | Spring Kafka, Kafka, MySQL | publish domain events and persist consumer receipts |
-| Observability | Micrometer, Prometheus, Grafana | export counters and visualize platform health |
+| Async order events | Spring Kafka, Kafka, Spring AMQP, RabbitMQ, MySQL | publish domain events and persist consumer receipts through both broker styles |
+| Observability | Micrometer, Prometheus, Grafana | export counters, health state, latency, and queue depth |
 
 ## 7. Testing and Verification Approach
 
@@ -431,6 +437,7 @@ Current usage:
 
 - service and workflow tests validate order, refund, support, inventory, and security behavior
 - current verified backend test count: `39`
+- a Testcontainers integration test verifies login, cart, order creation, readiness, Kafka receipts, and RabbitMQ receipts against real containers
 
 ### 7.2 Frontend Verification
 
@@ -438,6 +445,19 @@ Used tools:
 
 - ESLint
 - Vite production build
+
+### 7.3 CI Pipeline
+
+Used technologies:
+
+- GitHub Actions
+- Docker
+
+Current usage:
+
+- backend workflow runs `./mvnw -B verify`
+- frontend workflow runs `npm ci`, `npm run lint`, and `npm run build`
+- CI also validates `docker compose build backend frontend`
 
 Current usage:
 

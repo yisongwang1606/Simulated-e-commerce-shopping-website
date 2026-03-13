@@ -15,8 +15,11 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Flyway database migrations are enabled and currently validated through `V8`.
 - The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, support ticket intake, order tagging, admin order/refund/service-desk review surfaces, and a redesigned admin operations overview.
 - Kafka-backed asynchronous order event capture is enabled.
+- RabbitMQ-backed asynchronous order event capture is enabled alongside Kafka.
 - Prometheus and Grafana are included in the local deployment stack.
 - Stripe test-mode payment provider support is implemented for PaymentIntent creation and webhook intake.
+- GitHub Actions CI is configured for backend verify, frontend lint/build, and Docker image builds.
+- Testcontainers integration testing now verifies MySQL, Redis, Kafka, and RabbitMQ in one end-to-end workflow.
 - Local deployment baseline is now included with Dockerfiles, `docker-compose.yml`, environment-variable-driven configuration, and Actuator health probes.
 
 ## Core Capabilities
@@ -43,6 +46,7 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Refund summary metrics for the admin dashboard
 - Admin operations summary endpoint for order pressure, support workload, catalog readiness, and low-stock watchlists
 - Kafka order lifecycle event publication and asynchronous receipt storage
+- RabbitMQ order lifecycle event publication and asynchronous receipt storage
 - Prometheus metrics endpoint and Grafana operations dashboard
 - Frontend admin dashboard with queue metrics, low-stock watchlists, order search filters, order tagging, refund review, and support ticket actions
 - Refined React shell with a more production-like storefront, catalog, and admin visual hierarchy
@@ -59,12 +63,15 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Redis-compatible server  
   Tested locally with Memurai on port `6379`
 - Apache Kafka 4.2
+- RabbitMQ 4.1
 - Prometheus
 - Grafana
 - Stripe Java SDK for test-mode payment provider integration
 - springdoc OpenAPI / Swagger UI
 - React 19 + Vite 7 + TypeScript
 - Docker / Docker Compose ready configuration
+- GitHub Actions
+- Testcontainers 2.0
 
 ## Local Environment
 
@@ -75,6 +82,8 @@ Tested local defaults:
 - Database: `ecom_enterprise`
 - Redis: `127.0.0.1:6379`
 - Kafka (Docker): `127.0.0.1:29092`
+- RabbitMQ AMQP (Docker): `127.0.0.1:5672`
+- RabbitMQ Management (Docker): `http://127.0.0.1:15672`
 - Prometheus (Docker): `http://127.0.0.1:9090`
 - Grafana (Docker): `http://127.0.0.1:3000`
 
@@ -94,6 +103,7 @@ Important local defaults:
 - Payment callback token: `local-payment-callback-token`
 - Stripe provider default currency: `cad`
 - Stripe test payment method fallback: `pm_card_visa`
+- Stripe publishable key for local frontend wiring: `pk_test_51TAIrr6sJR5QEaTkaEPrdFKRofjAufmkFvVQxd7PXHIS7rKtAT1IdZv5M1dfHKL81eIxyZWqIHe0dDyF7PIHP3N900oGGDsLtz`
 - Vite dev proxy target: `http://127.0.0.1:8080`
 
 ## Run The Backend
@@ -164,6 +174,24 @@ Expected service entry points:
 - Health: `http://127.0.0.1:8080/actuator/health/readiness`
 - Prometheus: `http://127.0.0.1:9090`
 - Grafana: `http://127.0.0.1:3000`
+- RabbitMQ Management: `http://127.0.0.1:15672`
+
+## CI And Integration Testing
+
+- GitHub Actions workflow: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)
+- Backend CI runs `./mvnw -B verify`
+- Frontend CI runs `npm ci`, `npm run lint`, and `npm run build`
+- Docker CI validates `docker compose build backend frontend`
+- Testcontainers integration coverage lives in [`EnterpriseWorkflowIT.java`](./src/test/java/com/eason/ecom/integration/EnterpriseWorkflowIT.java)
+
+The integration test boots:
+
+- MySQL 8.4
+- Redis 7.4
+- Kafka
+- RabbitMQ
+
+and verifies login, cart, order creation, readiness health, Kafka receipt persistence, and RabbitMQ receipt persistence.
 
 ## Swagger
 
@@ -353,6 +381,7 @@ Latest verified results:
 - Prometheus target scrape returned `UP`
 - Grafana provisioning loaded the enterprise dashboard
 - Kafka order lifecycle topic was created and consumed successfully
+- RabbitMQ queue metrics and Spring AMQP listener metrics were exposed to Prometheus
 - Real end-to-end local verification covered:
   - admin dashboard summary endpoint
   - address selection at order creation
@@ -381,6 +410,31 @@ Latest verified results:
 - Orders page now surfaces shipment placeholders, refund requests, and support ticket intake
 - Admin page now surfaces live operations metrics, low-stock watchlists, and filters orders while reviewing refunds and support tickets against live APIs
 
+## Monitoring
+
+Primary operations endpoints:
+
+- Prometheus: `http://127.0.0.1:9090`
+- Grafana: `http://127.0.0.1:3000`
+- Readiness: `http://127.0.0.1:8080/actuator/health/readiness`
+- Liveness: `http://127.0.0.1:8080/actuator/health/liveness`
+
+Grafana dashboard file:
+
+- [`ops/grafana/dashboards/ecom-platform-overview.json`](./ops/grafana/dashboards/ecom-platform-overview.json)
+
+Current dashboard coverage includes:
+
+- service availability for backend, Prometheus, and RabbitMQ
+- HTTP error rate
+- order API mean latency
+- RabbitMQ queue depth
+- HTTP request rate
+- Kafka throughput
+- order status transition rate
+- refund workflow activity
+- payment callback counters
+
 ## Stripe Test Mode
 
 To exercise the Stripe-backed payment path, provide these environment variables:
@@ -388,6 +442,9 @@ To exercise the Stripe-backed payment path, provide these environment variables:
 - `ECOM_STRIPE_ENABLED=true`
 - `ECOM_STRIPE_SECRET_KEY=sk_test_...`
 - `ECOM_STRIPE_WEBHOOK_SECRET=whsec_...` for verified webhook delivery
+- `VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51TAIrr6sJR5QEaTkaEPrdFKRofjAufmkFvVQxd7PXHIS7rKtAT1IdZv5M1dfHKL81eIxyZWqIHe0dDyF7PIHP3N900oGGDsLtz`
+
+The publishable key above can live in frontend configuration. The Stripe secret key and webhook secret remain environment-only and are intentionally not committed into the repository.
 
 Example admin payment request:
 
@@ -417,5 +474,5 @@ Latest verified Stripe sandbox sample:
 
 - Shipment and refund integrations are still platform-managed placeholders, not production carrier or PSP refund connections.
 - This project is currently implemented as a modular monolith, which is intentional for this phase.
-- Docker Compose has been exercised with MySQL, Redis, Kafka, backend, frontend, Prometheus, and Grafana.
-- A live Stripe sandbox call still requires a project-specific `sk_test_...` key and, for webhook verification, a matching `whsec_...` secret.
+- Docker Compose has been exercised with MySQL, Redis, Kafka, RabbitMQ, backend, frontend, Prometheus, and Grafana.
+- A live Stripe sandbox call still requires a project-specific `sk_test_...` key and, for webhook verification, a matching `whsec_...` secret. Those secrets are intentionally excluded from version control.

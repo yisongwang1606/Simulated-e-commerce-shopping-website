@@ -442,6 +442,205 @@
       ],
       "title": "Refund Workflow Activity",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "avg by (job) (up{job=~\"prometheus|ecom-backend|rabbitmq\"})",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Service Availability",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"ecom\",status=~\"4..\",uri!~\"/actuator.*\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{application=\"ecom\",uri!~\"/actuator.*\"}[5m])), 0.001)",
+          "legendFormat": "4xx",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"ecom\",status=~\"5..\",uri!~\"/actuator.*\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{application=\"ecom\",uri!~\"/actuator.*\"}[5m])), 0.001)",
+          "legendFormat": "5xx",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "HTTP Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(http_server_requests_seconds_sum{application=\"ecom\",method=\"POST\",uri=\"/api/orders\"}[30m])) / clamp_min(sum(increase(http_server_requests_seconds_count{application=\"ecom\",method=\"POST\",uri=\"/api/orders\"}[30m])), 1)",
+          "legendFormat": "POST /api/orders mean",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(http_server_requests_seconds_sum{application=\"ecom\",method=\"GET\",uri=\"/api/orders\"}[30m])) / clamp_min(sum(increase(http_server_requests_seconds_count{application=\"ecom\",method=\"GET\",uri=\"/api/orders\"}[30m])), 1)",
+          "legendFormat": "GET /api/orders mean",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Order API Mean Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "rabbitmq_queue_messages_ready",
+          "legendFormat": "ready",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "rabbitmq_queue_messages_unacked",
+          "legendFormat": "unacked",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "RabbitMQ Queue Depth",
+      "type": "timeseries"
     }
   ],
   "refresh": "15s",
@@ -462,6 +661,6 @@
   "timezone": "",
   "title": "Ecom Platform Overview",
   "uid": "ecom-platform-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

@@ -8,7 +8,7 @@
 | Project Code | ECOM-ENT-001 |
 | Version | v2.1 |
 | Status | Updated to match the implemented system |
-| Last Updated | March 12, 2026 |
+| Last Updated | March 13, 2026 |
 | Business Domain | B2C retail e-commerce |
 | Target Market | Canada |
 | Primary Language | English |
@@ -29,7 +29,10 @@ The current system is implemented as a modular monolith with:
 - MySQL-based business persistence
 - payment, shipment, refund, support, and audit workflows
 - Kafka-backed asynchronous order event processing
+- RabbitMQ-backed asynchronous order event processing
 - Prometheus and Grafana observability baseline
+- GitHub Actions CI baseline
+- Testcontainers integration testing baseline
 - Swagger/OpenAPI documentation
 - Docker-based local deployment
 - Actuator health endpoints for operational readiness
@@ -103,6 +106,7 @@ The shared backend platform currently includes:
 - Redis-backed token state, cart state, and product ranking state
 - Flyway schema migrations through `V8`
 - Kafka order lifecycle topic and asynchronous receipt persistence
+- RabbitMQ order lifecycle exchange, queue, and asynchronous receipt persistence
 - Prometheus metrics exposure and Grafana dashboard provisioning
 - Swagger/OpenAPI exposure
 - Actuator health checks
@@ -395,7 +399,9 @@ The current implementation includes at least the following entities:
 - Local full-stack container orchestration is supported through Docker Compose.
 - Frontend container is served through nginx.
 - Backend exposes readiness and liveness endpoints through Actuator.
-- Kafka, Prometheus, and Grafana are included in the containerized local stack.
+- Kafka, RabbitMQ, Prometheus, and Grafana are included in the containerized local stack.
+- GitHub Actions validates backend verify, frontend lint/build, and Docker image builds.
+- Testcontainers verifies MySQL, Redis, Kafka, and RabbitMQ through an end-to-end integration test.
 
 ### 9.3 Documentation Baseline
 
@@ -422,6 +428,8 @@ The following validation evidence has already been recorded for the current impl
 - readiness endpoint returned `UP`
 - Prometheus targets returned `UP`
 - Grafana dashboard provisioning completed successfully
+- RabbitMQ AMQP and management endpoints came up successfully
+- Testcontainers integration test passed against MySQL, Redis, Kafka, and RabbitMQ
 - real Stripe sandbox PaymentIntent creation succeeded with platform reconciliation back to `PAID`
 - real smoke flow executed successfully on March 12, 2026
 

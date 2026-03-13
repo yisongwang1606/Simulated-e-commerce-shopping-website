@@ -55,6 +55,25 @@ services:
       timeout: 10s
       retries: 18
 
+  rabbitmq:
+    image: rabbitmq:4.1.8-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${ECOM_RABBITMQ_USERNAME:-ecom}
+      RABBITMQ_DEFAULT_PASS: ${ECOM_RABBITMQ_PASSWORD:-ecom-rabbit}
+    command:
+      - bash
+      - -lc
+      - rabbitmq-plugins enable --offline rabbitmq_prometheus && rabbitmq-server
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "15692:15692"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 18
+
   backend:
     build:
       context: .
@@ -68,6 +87,11 @@ services:
       ECOM_REDIS_PORT: 6379
       ECOM_REDIS_PASSWORD: ${ECOM_REDIS_PASSWORD:-ecom-redis}
       ECOM_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      ECOM_RABBITMQ_ENABLED: ${ECOM_RABBITMQ_ENABLED:-true}
+      ECOM_RABBITMQ_HOST: rabbitmq
+      ECOM_RABBITMQ_PORT: 5672
+      ECOM_RABBITMQ_USERNAME: ${ECOM_RABBITMQ_USERNAME:-ecom}
+      ECOM_RABBITMQ_PASSWORD: ${ECOM_RABBITMQ_PASSWORD:-ecom-rabbit}
       ECOM_STRIPE_ENABLED: ${ECOM_STRIPE_ENABLED:-false}
       ECOM_STRIPE_SECRET_KEY: ${ECOM_STRIPE_SECRET_KEY:-}
       ECOM_STRIPE_WEBHOOK_SECRET: ${ECOM_STRIPE_WEBHOOK_SECRET:-}
@@ -82,6 +106,8 @@ services:
       redis:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       default:
@@ -112,6 +138,7 @@ services:
       - prometheus_data:/prometheus
     depends_on:
       - backend
+      - rabbitmq
     ports:
       - "9090:9090"
 

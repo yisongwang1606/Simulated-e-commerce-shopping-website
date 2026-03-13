@@ -28,7 +28,11 @@ public class OrderEventReceiptService {
 
     @Transactional
     public boolean record(OrderLifecycleEvent event) {
-        String consumerGroup = appProperties.getKafka().getConsumerGroup();
+        return record(event, appProperties.getKafka().getConsumerGroup());
+    }
+
+    @Transactional
+    public boolean record(OrderLifecycleEvent event, String consumerGroup) {
         if (orderEventReceiptRepository.existsByEventIdAndConsumerGroup(event.eventId(), consumerGroup)) {
             return false;
         }

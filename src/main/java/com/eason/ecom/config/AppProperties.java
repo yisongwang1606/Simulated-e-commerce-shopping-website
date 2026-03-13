@@ -14,6 +14,7 @@ public class AppProperties {
     private final Seed seed = new Seed();
     private final Redis redis = new Redis();
     private final Kafka kafka = new Kafka();
+    private final Rabbitmq rabbitmq = new Rabbitmq();
     private final Integrations integrations = new Integrations();
     private final Stripe stripe = new Stripe();
 
@@ -35,6 +36,10 @@ public class AppProperties {
 
     public Kafka getKafka() {
         return kafka;
+    }
+
+    public Rabbitmq getRabbitmq() {
+        return rabbitmq;
     }
 
     public Integrations getIntegrations() {
@@ -195,6 +200,54 @@ public class AppProperties {
 
         public void setTopicReplicas(short topicReplicas) {
             this.topicReplicas = topicReplicas;
+        }
+    }
+
+    public static class Rabbitmq {
+        private boolean enabled;
+        private String exchange = "ecom.order.lifecycle.exchange";
+        private String routingKey = "order.lifecycle";
+        private String orderQueue = "ecom.order.lifecycle.v1.receipts";
+        private String consumerGroup = "ecom-rabbit-order-events";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getExchange() {
+            return exchange;
+        }
+
+        public void setExchange(String exchange) {
+            this.exchange = exchange;
+        }
+
+        public String getRoutingKey() {
+            return routingKey;
+        }
+
+        public void setRoutingKey(String routingKey) {
+            this.routingKey = routingKey;
+        }
+
+        public String getOrderQueue() {
+            return orderQueue;
+        }
+
+        public void setOrderQueue(String orderQueue) {
+            this.orderQueue = orderQueue;
+        }
+
+        public String getConsumerGroup() {
+            return consumerGroup;
+        }
+
+        public void setConsumerGroup(String consumerGroup) {
+            this.consumerGroup = consumerGroup;
         }
     }
 
