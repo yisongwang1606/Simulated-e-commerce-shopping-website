@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 
 import {
   createOrderSupportTicket,
-  getOrderPayments,
   createRefundRequest,
+  getOrderPayments,
   getOrderRefundRequests,
   getOrders,
   getOrderShipments,
@@ -23,10 +23,11 @@ import { patchIndexedValue, setIndexedValue } from '../shared/state'
 import { EmptyState } from '../shared/ui/EmptyState'
 import { LoadingState } from '../shared/ui/LoadingState'
 import { SectionHeading } from '../shared/ui/SectionHeading'
-import { StripeOrderPaymentPanel } from '../shared/ui/StripeOrderPaymentPanel'
 import { StatusPill } from '../shared/ui/StatusPill'
+import { StripeOrderPaymentPanel } from '../shared/ui/StripeOrderPaymentPanel'
 
 const refundableStatuses = new Set(['SHIPPED', 'COMPLETED'])
+
 function createDefaultTicketDraft(): SupportTicketInput {
   return {
     category: 'DELIVERY',
@@ -40,18 +41,12 @@ export function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<number, boolean>>({})
   const [refundDrafts, setRefundDrafts] = useState<Record<number, string>>({})
-  const [ticketDrafts, setTicketDrafts] = useState<
-    Record<number, SupportTicketInput>
-  >({})
-  const [refundsByOrder, setRefundsByOrder] = useState<Record<number, RefundRequest[]>>(
-    {},
-  )
+  const [ticketDrafts, setTicketDrafts] = useState<Record<number, SupportTicketInput>>({})
+  const [refundsByOrder, setRefundsByOrder] = useState<Record<number, RefundRequest[]>>({})
   const [paymentsByOrder, setPaymentsByOrder] = useState<Record<number, PaymentTransaction[]>>(
     {},
   )
-  const [shipmentsByOrder, setShipmentsByOrder] = useState<Record<number, Shipment[]>>(
-    {},
-  )
+  const [shipmentsByOrder, setShipmentsByOrder] = useState<Record<number, Shipment[]>>({})
   const [supportTicketsByOrder, setSupportTicketsByOrder] = useState<
     Record<number, SupportTicket[]>
   >({})
@@ -73,8 +68,7 @@ export function OrdersPage() {
     setErrorMessage('')
 
     try {
-      const data = await getOrders()
-      setOrders(data)
+      setOrders(await getOrders())
     } catch (error) {
       setErrorMessage(extractErrorMessage(error))
     } finally {
@@ -100,10 +94,7 @@ export function OrdersPage() {
       setPaymentsByOrder((current) => ({ ...current, [orderId]: payments }))
       setRefundsByOrder((current) => ({ ...current, [orderId]: refunds }))
       setShipmentsByOrder((current) => ({ ...current, [orderId]: shipments }))
-      setSupportTicketsByOrder((current) => ({
-        ...current,
-        [orderId]: supportTickets,
-      }))
+      setSupportTicketsByOrder((current) => ({ ...current, [orderId]: supportTickets }))
     } catch (error) {
       setErrorMessage(extractErrorMessage(error))
     } finally {
@@ -179,10 +170,7 @@ export function OrdersPage() {
     }
   }
 
-  function updateTicketDraft(
-    orderId: number,
-    patch: Partial<SupportTicketInput>,
-  ) {
+  function updateTicketDraft(orderId: number, patch: Partial<SupportTicketInput>) {
     setTicketDrafts((current) =>
       patchIndexedValue(current, orderId, createDefaultTicketDraft(), patch),
     )
@@ -217,6 +205,8 @@ export function OrdersPage() {
                 refundableStatuses.has(order.status) &&
                 !refundRequests.some((request) => request.refundStatus !== 'REJECTED')
               const ticketDraft = ticketDrafts[order.id] ?? createDefaultTicketDraft()
+              const activityCount =
+                payments.length + shipments.length + refundRequests.length + supportTickets.length
 
               return (
                 <article className="order-card enterprise-order-card" key={order.id}>
@@ -243,9 +233,7 @@ export function OrdersPage() {
                         <div className="info-card">
                           <p className="eyebrow">Delivery snapshot</p>
                           <strong>{order.shippingAddress.receiverName}</strong>
-                          <span className="supporting-copy">
-                            {order.shippingAddress.phone}
-                          </span>
+                          <span className="supporting-copy">{order.shippingAddress.phone}</span>
                           <span className="supporting-copy">
                             {order.shippingAddress.line1}
                             {order.shippingAddress.line2
@@ -272,270 +260,305 @@ export function OrdersPage() {
                   </div>
 
                   <div className="order-detail-panel">
-                    <div className="metric-grid order-metric-grid">
-                      <div className="info-card">
-                        <p className="eyebrow">Subtotal</p>
-                        <strong>{formatCurrency(order.subtotalAmount)}</strong>
-                      </div>
-                      <div className="info-card">
-                        <p className="eyebrow">Tax</p>
-                        <strong>{formatCurrency(order.taxAmount)}</strong>
-                      </div>
-                      <div className="info-card">
-                        <p className="eyebrow">Shipping</p>
-                        <strong>{formatCurrency(order.shippingAmount)}</strong>
-                      </div>
-                    </div>
-
-                    <div className="stack">
-                      {order.items.map((item) => (
-                        <div className="order-item-row" key={`${order.id}-${item.productId}`}>
-                          <div className="order-item-copy">
-                            <span className="order-item-name">{item.productName}</span>
-                            <span className="supporting-copy">
-                              {item.sku ? `${item.sku} · ` : ''}Quantity {item.quantity}
-                            </span>
+                    <div className="order-primary-grid">
+                      <section className="info-card stack order-financial-card">
+                        <div className="toolbar">
+                          <div>
+                            <p className="eyebrow">Financial snapshot</p>
+                            <h4 className="card-title">Commercial totals</h4>
                           </div>
-                          <strong>{formatCurrency(item.subtotal)}</strong>
+                          <span className="signal">{formatCurrency(order.totalPrice)}</span>
                         </div>
-                      ))}
+
+                        <div className="metric-grid order-metric-grid">
+                          <div className="info-card">
+                            <p className="eyebrow">Subtotal</p>
+                            <strong>{formatCurrency(order.subtotalAmount)}</strong>
+                          </div>
+                          <div className="info-card">
+                            <p className="eyebrow">Tax</p>
+                            <strong>{formatCurrency(order.taxAmount)}</strong>
+                          </div>
+                          <div className="info-card">
+                            <p className="eyebrow">Shipping</p>
+                            <strong>{formatCurrency(order.shippingAmount)}</strong>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="info-card stack order-items-card">
+                        <div className="toolbar">
+                          <div>
+                            <p className="eyebrow">Order contents</p>
+                            <h4 className="card-title">Purchased line items</h4>
+                          </div>
+                          <span className="signal">{order.items.length} items</span>
+                        </div>
+
+                        <div className="stack order-line-items">
+                          {order.items.map((item) => (
+                            <div className="order-item-row" key={`${order.id}-${item.productId}`}>
+                              <div className="order-item-copy">
+                                <span className="order-item-name">{item.productName}</span>
+                                <span className="supporting-copy">
+                                  {item.sku ? `${item.sku} | ` : ''}Quantity {item.quantity}
+                                </span>
+                              </div>
+                              <strong>{formatCurrency(item.subtotal)}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
                     </div>
 
                     {expandedOrderIds[order.id] ? (
                       detailLoadingByOrder[order.id] ? (
                         <LoadingState title="Loading service events..." />
                       ) : (
-                        <div className="service-grid">
-                          <StripeOrderPaymentPanel
-                            onError={setErrorMessage}
-                            onMessage={setMessage}
-                            onPaymentUpdated={async () => {
-                              await Promise.all([loadOrderOperations(order.id), loadOrders()])
-                            }}
-                            order={order}
-                            payments={payments}
-                          />
-
-                          <section className="info-card stack">
-                            <div className="toolbar">
-                              <div>
-                                <p className="eyebrow">Shipment records</p>
-                                <h4 className="card-title">Fulfillment visibility</h4>
-                              </div>
-                              <span className="signal">{shipments.length} records</span>
+                        <section className="info-card stack service-workspace">
+                          <div className="toolbar">
+                            <div>
+                              <p className="eyebrow">After-sales workspace</p>
+                              <h4 className="card-title">
+                                Payments, delivery, returns, and support
+                              </h4>
                             </div>
+                            <span className="signal">{activityCount} updates</span>
+                          </div>
 
-                            {shipments.length > 0 ? (
-                              <div className="stack">
-                                {shipments.map((shipment) => (
-                                  <div className="detail-row" key={shipment.id}>
-                                    <div className="stack">
-                                      <strong>{shipment.shipmentNo}</strong>
-                                      <span className="supporting-copy">
-                                        {shipment.carrierCode} · {shipment.trackingNo}
-                                      </span>
-                                      <span className="supporting-copy">
-                                        Updated {formatDateTime(shipment.updatedAt)}
-                                      </span>
-                                    </div>
-                                    <StatusPill value={shipment.shipmentStatus} />
-                                  </div>
-                                ))}
+                          <div className="service-grid">
+                            <StripeOrderPaymentPanel
+                              onError={setErrorMessage}
+                              onMessage={setMessage}
+                              onPaymentUpdated={async () => {
+                                await Promise.all([loadOrderOperations(order.id), loadOrders()])
+                              }}
+                              order={order}
+                              payments={payments}
+                            />
+
+                            <section className="info-card stack">
+                              <div className="toolbar">
+                                <div>
+                                  <p className="eyebrow">Shipment records</p>
+                                  <h4 className="card-title">Fulfillment visibility</h4>
+                                </div>
+                                <span className="signal">{shipments.length} records</span>
                               </div>
-                            ) : (
-                              <p className="supporting-copy">
-                                No shipment record has been created yet.
-                              </p>
-                            )}
-                          </section>
 
-                          <section className="info-card stack">
-                            <div className="toolbar">
-                              <div>
-                                <p className="eyebrow">Refund requests</p>
-                                <h4 className="card-title">Finance and returns</h4>
-                              </div>
-                              <span className="signal">{refundRequests.length} requests</span>
-                            </div>
-
-                            {refundRequests.length > 0 ? (
-                              <div className="stack">
-                                {refundRequests.map((request) => (
-                                  <div className="detail-row" key={request.id}>
-                                    <div className="stack">
-                                      <strong>Request #{request.id}</strong>
-                                      <span className="supporting-copy">{request.reason}</span>
-                                      <span className="supporting-copy">
-                                        Submitted {formatDateTime(request.requestedAt)}
-                                      </span>
-                                      {request.reviewNote ? (
+                              {shipments.length > 0 ? (
+                                <div className="detail-feed">
+                                  {shipments.map((shipment) => (
+                                    <div className="detail-row" key={shipment.id}>
+                                      <div className="stack">
+                                        <strong>{shipment.shipmentNo}</strong>
                                         <span className="supporting-copy">
-                                          Review: {request.reviewNote}
+                                          {shipment.carrierCode} | {shipment.trackingNo}
                                         </span>
-                                      ) : null}
+                                        <span className="supporting-copy">
+                                          Updated {formatDateTime(shipment.updatedAt)}
+                                        </span>
+                                      </div>
+                                      <StatusPill value={shipment.shipmentStatus} />
                                     </div>
-                                    <StatusPill value={request.refundStatus} />
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="supporting-copy">
-                                No refund requests on this order yet.
-                              </p>
-                            )}
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="supporting-copy">
+                                  No shipment record has been created yet.
+                                </p>
+                              )}
+                            </section>
 
-                            {canRequestRefund ? (
+                            <section className="info-card stack">
+                              <div className="toolbar">
+                                <div>
+                                  <p className="eyebrow">Refund requests</p>
+                                  <h4 className="card-title">Finance and returns</h4>
+                                </div>
+                                <span className="signal">{refundRequests.length} requests</span>
+                              </div>
+
+                              {refundRequests.length > 0 ? (
+                                <div className="detail-feed">
+                                  {refundRequests.map((request) => (
+                                    <div className="detail-row" key={request.id}>
+                                      <div className="stack">
+                                        <strong>Request #{request.id}</strong>
+                                        <span className="supporting-copy">{request.reason}</span>
+                                        <span className="supporting-copy">
+                                          Submitted {formatDateTime(request.requestedAt)}
+                                        </span>
+                                        {request.reviewNote ? (
+                                          <span className="supporting-copy">
+                                            Review: {request.reviewNote}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      <StatusPill value={request.refundStatus} />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="supporting-copy">
+                                  No refund requests on this order yet.
+                                </p>
+                              )}
+
+                              {canRequestRefund ? (
+                                <div className="stack refund-form">
+                                  <div className="field">
+                                    <label htmlFor={`refund-${order.id}`}>Refund reason</label>
+                                    <textarea
+                                      id={`refund-${order.id}`}
+                                      onChange={(event) =>
+                                        updateRefundDraft(order.id, event.target.value)
+                                      }
+                                      placeholder="Explain the issue for support and finance review."
+                                      value={refundDrafts[order.id] ?? ''}
+                                    />
+                                  </div>
+                                  <button
+                                    className="button"
+                                    disabled={submittingRefundOrderId === order.id}
+                                    onClick={() => void handleRefundSubmit(order.id)}
+                                    type="button"
+                                  >
+                                    {submittingRefundOrderId === order.id
+                                      ? 'Submitting refund...'
+                                      : 'Request refund'}
+                                  </button>
+                                </div>
+                              ) : null}
+                            </section>
+
+                            <section className="info-card stack">
+                              <div className="toolbar">
+                                <div>
+                                  <p className="eyebrow">Support tickets</p>
+                                  <h4 className="card-title">Service desk</h4>
+                                </div>
+                                <span className="signal">{supportTickets.length} cases</span>
+                              </div>
+
+                              {supportTickets.length > 0 ? (
+                                <div className="detail-feed">
+                                  {supportTickets.map((supportTicket) => (
+                                    <div className="detail-row" key={supportTicket.id}>
+                                      <div className="stack">
+                                        <strong>{supportTicket.ticketNo}</strong>
+                                        <span className="supporting-copy">
+                                          {supportTicket.subject}
+                                        </span>
+                                        <span className="supporting-copy">
+                                          {supportTicket.category} | {supportTicket.priority}
+                                        </span>
+                                        {supportTicket.latestNote ? (
+                                          <span className="supporting-copy">
+                                            Latest note: {supportTicket.latestNote}
+                                          </span>
+                                        ) : null}
+                                        {supportTicket.assignedTeam ? (
+                                          <span className="supporting-copy">
+                                            Assigned to {supportTicket.assignedTeam}
+                                            {supportTicket.assignedToUsername
+                                              ? ` | ${supportTicket.assignedToUsername}`
+                                              : ''}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      <StatusPill value={supportTicket.ticketStatus} />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="supporting-copy">
+                                  No support tickets have been opened for this order.
+                                </p>
+                              )}
+
                               <div className="stack refund-form">
+                                <div className="form-columns">
+                                  <div className="field">
+                                    <label htmlFor={`ticket-category-${order.id}`}>Category</label>
+                                    <select
+                                      id={`ticket-category-${order.id}`}
+                                      onChange={(event) =>
+                                        updateTicketDraft(order.id, {
+                                          category: event.target.value,
+                                        })
+                                      }
+                                      value={ticketDraft.category}
+                                    >
+                                      <option value="DELIVERY">DELIVERY</option>
+                                      <option value="DAMAGE">DAMAGE</option>
+                                      <option value="BILLING">BILLING</option>
+                                      <option value="RETURN">RETURN</option>
+                                      <option value="OTHER">OTHER</option>
+                                    </select>
+                                  </div>
+                                  <div className="field">
+                                    <label htmlFor={`ticket-priority-${order.id}`}>Priority</label>
+                                    <select
+                                      id={`ticket-priority-${order.id}`}
+                                      onChange={(event) =>
+                                        updateTicketDraft(order.id, {
+                                          priority:
+                                            event.target.value as SupportTicketInput['priority'],
+                                        })
+                                      }
+                                      value={ticketDraft.priority}
+                                    >
+                                      <option value="LOW">LOW</option>
+                                      <option value="MEDIUM">MEDIUM</option>
+                                      <option value="HIGH">HIGH</option>
+                                      <option value="URGENT">URGENT</option>
+                                    </select>
+                                  </div>
+                                </div>
+
                                 <div className="field">
-                                  <label htmlFor={`refund-${order.id}`}>Refund reason</label>
-                                  <textarea
-                                    id={`refund-${order.id}`}
+                                  <label htmlFor={`ticket-subject-${order.id}`}>Subject</label>
+                                  <input
+                                    id={`ticket-subject-${order.id}`}
                                     onChange={(event) =>
-                                      updateRefundDraft(order.id, event.target.value)
+                                      updateTicketDraft(order.id, {
+                                        subject: event.target.value,
+                                      })
                                     }
-                                    placeholder="Explain the issue for support and finance review."
-                                    value={refundDrafts[order.id] ?? ''}
+                                    placeholder="Summarize the issue for support."
+                                    value={ticketDraft.subject}
                                   />
                                 </div>
+
+                                <div className="field">
+                                  <label htmlFor={`ticket-message-${order.id}`}>Details</label>
+                                  <textarea
+                                    id={`ticket-message-${order.id}`}
+                                    onChange={(event) =>
+                                      updateTicketDraft(order.id, {
+                                        customerMessage: event.target.value,
+                                      })
+                                    }
+                                    placeholder="Describe what happened and what you need next."
+                                    value={ticketDraft.customerMessage}
+                                  />
+                                </div>
+
                                 <button
                                   className="button"
-                                  disabled={submittingRefundOrderId === order.id}
-                                  onClick={() => void handleRefundSubmit(order.id)}
+                                  disabled={submittingTicketOrderId === order.id}
+                                  onClick={() => void handleSupportTicketSubmit(order.id)}
                                   type="button"
                                 >
-                                  {submittingRefundOrderId === order.id
-                                    ? 'Submitting refund...'
-                                    : 'Request refund'}
+                                  {submittingTicketOrderId === order.id
+                                    ? 'Submitting case...'
+                                    : 'Open support case'}
                                 </button>
                               </div>
-                            ) : null}
-                          </section>
-
-                          <section className="info-card stack">
-                            <div className="toolbar">
-                              <div>
-                                <p className="eyebrow">Support tickets</p>
-                                <h4 className="card-title">Service desk</h4>
-                              </div>
-                              <span className="signal">{supportTickets.length} cases</span>
-                            </div>
-
-                            {supportTickets.length > 0 ? (
-                              <div className="stack">
-                                {supportTickets.map((supportTicket) => (
-                                  <div className="detail-row" key={supportTicket.id}>
-                                    <div className="stack">
-                                      <strong>{supportTicket.ticketNo}</strong>
-                                      <span className="supporting-copy">
-                                        {supportTicket.subject}
-                                      </span>
-                                      <span className="supporting-copy">
-                                        {supportTicket.category} · {supportTicket.priority}
-                                      </span>
-                                      {supportTicket.latestNote ? (
-                                        <span className="supporting-copy">
-                                          Latest note: {supportTicket.latestNote}
-                                        </span>
-                                      ) : null}
-                                      {supportTicket.assignedTeam ? (
-                                        <span className="supporting-copy">
-                                          Assigned to {supportTicket.assignedTeam}
-                                          {supportTicket.assignedToUsername
-                                            ? ` · ${supportTicket.assignedToUsername}`
-                                            : ''}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <StatusPill value={supportTicket.ticketStatus} />
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="supporting-copy">
-                                No support tickets have been opened for this order.
-                              </p>
-                            )}
-
-                            <div className="stack refund-form">
-                              <div className="form-columns">
-                                <div className="field">
-                                  <label htmlFor={`ticket-category-${order.id}`}>Category</label>
-                                  <select
-                                    id={`ticket-category-${order.id}`}
-                                    onChange={(event) =>
-                                      updateTicketDraft(order.id, {
-                                        category: event.target.value,
-                                      })
-                                    }
-                                    value={ticketDraft.category}
-                                  >
-                                    <option value="DELIVERY">DELIVERY</option>
-                                    <option value="DAMAGE">DAMAGE</option>
-                                    <option value="BILLING">BILLING</option>
-                                    <option value="RETURN">RETURN</option>
-                                    <option value="OTHER">OTHER</option>
-                                  </select>
-                                </div>
-                                <div className="field">
-                                  <label htmlFor={`ticket-priority-${order.id}`}>Priority</label>
-                                  <select
-                                    id={`ticket-priority-${order.id}`}
-                                    onChange={(event) =>
-                                      updateTicketDraft(order.id, {
-                                        priority: event.target.value as SupportTicketInput['priority'],
-                                      })
-                                    }
-                                    value={ticketDraft.priority}
-                                  >
-                                    <option value="LOW">LOW</option>
-                                    <option value="MEDIUM">MEDIUM</option>
-                                    <option value="HIGH">HIGH</option>
-                                    <option value="URGENT">URGENT</option>
-                                  </select>
-                                </div>
-                              </div>
-
-                              <div className="field">
-                                <label htmlFor={`ticket-subject-${order.id}`}>Subject</label>
-                                <input
-                                  id={`ticket-subject-${order.id}`}
-                                  onChange={(event) =>
-                                    updateTicketDraft(order.id, {
-                                      subject: event.target.value,
-                                    })
-                                  }
-                                  placeholder="Summarize the issue for support."
-                                  value={ticketDraft.subject}
-                                />
-                              </div>
-
-                              <div className="field">
-                                <label htmlFor={`ticket-message-${order.id}`}>Details</label>
-                                <textarea
-                                  id={`ticket-message-${order.id}`}
-                                  onChange={(event) =>
-                                    updateTicketDraft(order.id, {
-                                      customerMessage: event.target.value,
-                                    })
-                                  }
-                                  placeholder="Describe what happened and what you need next."
-                                  value={ticketDraft.customerMessage}
-                                />
-                              </div>
-
-                              <button
-                                className="button"
-                                disabled={submittingTicketOrderId === order.id}
-                                onClick={() => void handleSupportTicketSubmit(order.id)}
-                                type="button"
-                              >
-                                {submittingTicketOrderId === order.id
-                                  ? 'Submitting case...'
-                                  : 'Open support case'}
-                              </button>
-                            </div>
-                          </section>
-                        </div>
+                            </section>
+                          </div>
+                        </section>
                       )
                     ) : null}
                   </div>

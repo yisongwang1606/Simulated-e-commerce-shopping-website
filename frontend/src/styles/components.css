@@ -639,6 +639,7 @@
 .order-card {
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   align-items: start;
+  gap: 18px;
 }
 
 .order-summary-panel {
@@ -660,19 +661,37 @@
 .order-meta-line {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .order-detail-panel {
   display: grid;
-  gap: 10px;
+  gap: 16px;
+  min-width: 0;
+}
+
+.order-primary-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.order-financial-card,
+.order-items-card,
+.service-workspace {
   min-width: 0;
 }
 
 .order-metric-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.order-line-items {
+  max-height: 340px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .order-item-row {
@@ -701,6 +720,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
+  align-items: start;
 }
 
 .stripe-payment-panel {
@@ -773,6 +793,14 @@
 .detail-row:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+.detail-feed {
+  display: grid;
+  gap: 10px;
+  max-height: 300px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .message {
@@ -1003,7 +1031,8 @@ th {
   .cart-layout,
   .cart-item-main,
   .order-card,
-  .order-item-row {
+  .order-item-row,
+  .order-primary-grid {
     grid-template-columns: 1fr;
   }
 
