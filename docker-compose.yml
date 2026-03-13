@@ -33,6 +33,8 @@ services:
   kafka:
     image: apache/kafka:4.2.0
     hostname: kafka
+    extra_hosts:
+      - "kafka:127.0.0.1"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
