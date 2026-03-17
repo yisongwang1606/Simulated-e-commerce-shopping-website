@@ -30,7 +30,7 @@ jobs:
       - name: Verify backend including integration tests
         run: ./mvnw -B verify
 
-  frontend:
+  customer_frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -42,18 +42,44 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: customer-web/package-lock.json
 
-      - name: Install frontend dependencies
-        working-directory: frontend
+      - name: Install customer storefront dependencies
+        working-directory: customer-web
         run: npm ci
 
-      - name: Lint frontend
-        working-directory: frontend
+      - name: Lint customer storefront
+        working-directory: customer-web
         run: npm run lint
 
-      - name: Build frontend
-        working-directory: frontend
+      - name: Build customer storefront
+        working-directory: customer-web
+        run: npm run build
+
+  admin_frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: admin-web/package-lock.json
+
+      - name: Install admin portal dependencies
+        working-directory: admin-web
+        run: npm ci
+
+      - name: Lint admin portal
+        working-directory: admin-web
+        run: npm run lint
+
+      - name: Build admin portal
+        working-directory: admin-web
         run: npm run build
 
   docker:
@@ -61,10 +87,11 @@ jobs:
     timeout-minutes: 20
     needs:
       - backend
-      - frontend
+      - customer_frontend
+      - admin_frontend
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Build backend and frontend images
-        run: docker compose build backend frontend
+      - name: Build backend and web images
+        run: docker compose build backend customer-web admin-web

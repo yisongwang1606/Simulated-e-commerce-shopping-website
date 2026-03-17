@@ -106,9 +106,9 @@ services:
     ports:
       - "8080:8080"
 
-  frontend:
+  customer-web:
     build:
-      context: ./frontend
+      context: ./customer-web
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
@@ -117,6 +117,18 @@ services:
       - backend
     ports:
       - "4173:80"
+
+  admin-web:
+    build:
+      context: ./admin-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+    depends_on:
+      - backend
+    ports:
+      - "4174:80"
 
   prometheus:
     image: prom/prometheus:v3.5.0

@@ -13,13 +13,13 @@ It started as a simulated storefront, and is now evolving into a realistic singl
 - Backend enterprise baseline is implemented and verified locally.
 - Swagger / OpenAPI is enabled.
 - Flyway database migrations are enabled and currently validated through `V8`.
-- The React frontend now supports enterprise-facing checkout and operations flows, including address-driven order placement, customer refund handling, support ticket intake, order tagging, admin order/refund/service-desk review surfaces, and a redesigned admin operations overview.
+- The web layer now runs as two independent React apps: a customer storefront inspired by Taobao/Amazon marketplace patterns and a separate admin operations portal for internal workflows.
 - Kafka-backed asynchronous order event capture is enabled.
 - Prometheus and Grafana are included in the local deployment stack.
 - Stripe test-mode payment provider support is implemented for PaymentIntent creation and webhook intake.
 - Customer checkout now embeds Stripe Elements against customer-owned orders.
 - Kafka consumers retry failed order events and route poison messages into a dead-letter topic.
-- GitHub Actions CI is configured for backend verify, frontend lint/build, and Docker image builds.
+- GitHub Actions CI is configured for backend verify, both frontend builds, and Docker image builds.
 - Testcontainers integration testing now verifies MySQL, Redis, and Kafka in one end-to-end workflow.
 - Local deployment baseline is now included with Dockerfiles, `docker-compose.yml`, environment-variable-driven configuration, and Actuator health probes.
 
@@ -93,7 +93,8 @@ Key config files:
 - [`src/main/resources/application-dev.properties`](./src/main/resources/application-dev.properties)
 - [`src/main/resources/application-docker.properties`](./src/main/resources/application-docker.properties)
 - [`docker-compose.yml`](./docker-compose.yml)
-- [`frontend/nginx.conf`](./frontend/nginx.conf)
+- [`customer-web/nginx.conf`](./customer-web/nginx.conf)
+- [`admin-web/nginx.conf`](./admin-web/nginx.conf)
 
 Important local defaults:
 
@@ -132,23 +133,36 @@ Run the packaged jar:
 java -jar target\ecom-0.0.1-SNAPSHOT.jar
 ```
 
-## Run The Frontend
+## Run The Frontends
 
 ```powershell
-cd frontend
+cd customer-web
 npm install
 npm run dev
 ```
 
-Frontend local default:
+Customer storefront local default:
 
 - Web UI: `http://127.0.0.1:5173`
 - API base URL: same-origin in containers, Vite proxy in local dev
 
+Admin portal local default:
+
+```powershell
+cd admin-web
+npm install
+npm run dev
+```
+
+- Web UI: `http://127.0.0.1:5174`
+
 Frontend build verification:
 
 ```powershell
-cd frontend
+cd customer-web
+npm run build
+
+cd ..\admin-web
 npm run build
 ```
 
@@ -168,7 +182,7 @@ npm run build
 > - prune old Docker images, build cache, networks, and volumes
 > - rebuild and start only the latest version of this project
 >
-> Local Docker WSL storage has also been capped through [`C:\Users\yisongwang\.wslconfig`](C:\Users\yisongwang\.wslconfig) with `defaultVhdSize=10GB` to prevent `C:` drive exhaustion during repeated test cycles.
+> Local Docker WSL storage is capped through [`C:\Users\yisongwang\.wslconfig`](C:\Users\yisongwang\.wslconfig) with `defaultVhdSize=8GB` to prevent `C:` drive exhaustion during repeated rebuild cycles.
 
 Copy the root environment template first if you want custom secrets:
 
@@ -184,7 +198,8 @@ docker compose up --build
 
 Expected service entry points:
 
-- Frontend: `http://127.0.0.1:4173`
+- Customer storefront: `http://127.0.0.1:4173`
+- Admin portal: `http://127.0.0.1:4174`
 - Backend API: `http://127.0.0.1:8080`
 - Swagger: `http://127.0.0.1:8080/swagger-ui.html`
 - Health: `http://127.0.0.1:8080/actuator/health/readiness`
@@ -196,8 +211,9 @@ Expected service entry points:
 
 - GitHub Actions workflow: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)
 - Backend CI runs `./mvnw -B verify`
-- Frontend CI runs `npm ci`, `npm run lint`, and `npm run build`
-- Docker CI validates `docker compose build backend frontend`
+- Customer storefront CI runs `npm ci`, `npm run lint`, and `npm run build`
+- Admin portal CI runs `npm ci`, `npm run lint`, and `npm run build`
+- Docker CI validates `docker compose build backend customer-web admin-web`
 - Testcontainers integration coverage lives in [`EnterpriseWorkflowIT.java`](./src/test/java/com/eason/ecom/integration/EnterpriseWorkflowIT.java)
 
 The integration test boots:
@@ -378,7 +394,8 @@ ecom/
   src/main/java/com/eason/ecom
   src/main/resources
   src/test/java/com/eason/ecom
-  frontend/
+  customer-web/
+  admin-web/
   pom.xml
   README.md
 ```
@@ -412,16 +429,22 @@ Latest verified results:
 Latest frontend verification:
 
 ```powershell
-cd frontend
+cd customer-web
+npm run lint
+npm run build
+
+cd ..\admin-web
 npm run lint
 npm run build
 ```
 
 Latest verified results:
 
-- Frontend lint passed
-- Frontend production build passed
-- Home, catalog, and admin pages were restyled into stronger dashboard-style layouts
+- Customer storefront lint passed
+- Admin portal lint passed
+- Customer storefront production build passed
+- Admin portal production build passed
+- Customer storefront now uses a denser marketplace visual system inspired by Taobao/Amazon patterns
 - Vite local development now proxies `/api`, `/swagger-ui`, `/v3/api-docs`, and `/actuator`
 - Checkout page now creates orders with a selected address snapshot
 - Orders page now surfaces shipment placeholders, refund requests, and support ticket intake
@@ -505,5 +528,5 @@ Latest verified Stripe sandbox sample:
 
 - Shipment and refund integrations are still platform-managed placeholders, not production carrier or PSP refund connections.
 - This project is currently implemented as a modular monolith, which is intentional for this phase.
-- Docker Compose has been exercised with MySQL, Redis, Kafka, backend, frontend, Prometheus, and Grafana.
+- Docker Compose has been exercised with MySQL, Redis, Kafka, backend, customer-web, admin-web, Prometheus, and Grafana.
 - A live Stripe sandbox call still requires a project-specific `sk_test_...` key and, for webhook verification, a matching `whsec_...` secret. Those secrets are intentionally excluded from version control.

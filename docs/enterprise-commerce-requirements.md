@@ -395,10 +395,10 @@ The current implementation includes at least the following entities:
 
 - Local standalone execution is supported.
 - Local full-stack container orchestration is supported through Docker Compose.
-- Frontend container is served through nginx.
+- Customer storefront and admin portal containers are served independently through nginx.
 - Backend exposes readiness and liveness endpoints through Actuator.
 - Kafka, Prometheus, and Grafana are included in the containerized local stack.
-- GitHub Actions validates backend verify, frontend lint/build, and Docker image builds.
+- GitHub Actions validates backend verify, customer/admin lint-build jobs, and Docker image builds.
 - Testcontainers verifies MySQL, Redis, and Kafka through an end-to-end integration test.
 
 ### 9.3 Documentation Baseline
@@ -411,7 +411,8 @@ The current implementation includes at least the following entities:
 The current implementation is expected to pass:
 
 - backend automated tests
-- frontend lint and production build
+- customer storefront lint and production build
+- admin portal lint and production build
 - Docker-based runtime health checks
 - end-to-end smoke validation through real API calls
 
@@ -420,8 +421,10 @@ The current implementation is expected to pass:
 The following validation evidence has already been recorded for the current implementation:
 
 - backend automated tests passed: `41`
-- frontend `npm run lint` passed
-- frontend `npm run build` passed
+- customer-web `npm run lint` passed
+- customer-web `npm run build` passed
+- admin-web `npm run lint` passed
+- admin-web `npm run build` passed
 - Docker Compose runtime came up successfully
 - readiness endpoint returned `UP`
 - Prometheus targets returned `UP`

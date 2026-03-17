@@ -16,7 +16,8 @@ The system is implemented as a single-repository modular monolith with two front
 The solution includes:
 
 - Java backend API
-- React frontend
+- React customer storefront
+- React admin operations portal
 - MySQL relational persistence
 - Redis operational state storage
 - Kafka asynchronous event transport
@@ -306,9 +307,9 @@ Used for:
 
 Applied in this project:
 
-- customer routes use storefront-specific route structure
-- admin routes use admin-specific route structure
-- `/login` and `/admin/login` are separate entry points
+- customer routes use storefront-specific route structure on the customer app
+- admin routes use admin-specific route structure on the admin app
+- each portal now has its own `/login` entry point on its own origin
 - admin route guard checks role-based access on the client side
 
 ### 4.5 Zustand
@@ -362,8 +363,9 @@ Used for:
 Applied in this project:
 
 - backend has a dedicated Docker image
-- frontend has a dedicated Docker image
-- the frontend image serves static files through nginx
+- customer storefront has its own Docker image
+- admin portal has its own Docker image
+- both web images serve static files through nginx
 
 ### 5.2 Docker Compose
 
@@ -373,7 +375,7 @@ Used for:
 
 Applied in this project:
 
-- Compose starts MySQL, Redis, Kafka, backend, frontend, Prometheus, and Grafana together
+- Compose starts MySQL, Redis, Kafka, backend, customer-web, admin-web, Prometheus, and Grafana together
 - service health and dependency ordering support realistic local startup
 - full-stack smoke validation is executed against the Compose runtime
 
@@ -381,11 +383,11 @@ Applied in this project:
 
 Used for:
 
-- serving the frontend production bundle in containers
+- serving each frontend production bundle in containers
 
 Applied in this project:
 
-- built frontend assets are served through nginx
+- built storefront and admin assets are served through nginx
 - same-origin API calls are supported inside the containerized setup
 
 ### 5.4 Environment Variables and Profiles
